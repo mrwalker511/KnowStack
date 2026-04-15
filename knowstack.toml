@@ -1,0 +1,22 @@
+# KnowStack configuration for the KnowStack repo itself.
+# This is the self-indexing config — used when you run `knowstack index .`
+# inside the KnowStack repo to index its own source code.
+
+[knowstack]
+exclude_patterns = [
+    "**/.git/**",
+    "**/__pycache__/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/.knowstack/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.egg-info/**",
+    "**/.pytest_cache/**",
+    "**/.mypy_cache/**",
+    "**/.ruff_cache/**",
+]
+enable_git_enrichment = true
+git_history_limit = 200
+context_max_tokens = 6000
+log_level = "INFO"
