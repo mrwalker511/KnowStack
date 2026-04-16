@@ -1,4 +1,6 @@
-# CLAUDE.md — KnowStack
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 KnowStack converts codebases into queryable knowledge graphs for LLM context
 retrieval and developer exploration.
@@ -15,11 +17,17 @@ make typecheck        # mypy
 make clean            # remove .knowstack/, dist/, caches
 ```
 
+Run a single test:
+```bash
+pytest tests/unit/test_python_parser.py::test_function_name
+pytest -m integration   # integration tests only
+```
+
 ## Architecture in 30 seconds
 
 Six-stage pipeline: **Scanner → Parsers → Normalizer → Enricher → Writer → Embedder**
 
-Two storage backends: **Kuzu** (property graph, Cypher) + **ChromaDB** (vectors)
+Two storage backends: **Kuzu** (property graph, Cypher) at `.knowstack/graph.kuzu` + **ChromaDB** (vectors) at `.knowstack/vectors`
 
 Hybrid retrieval: **DSL graph queries + semantic search + RRF fusion + context packing**
 
@@ -48,6 +56,18 @@ node_id = sha256(f"{repo_root}:{fqn}").hexdigest()[:16]
 
 Same file + same FQN = same ID across re-index runs. Required for idempotent upserts.
 
+## Programmatic API
+
+```python
+from knowstack.retrieval.query_engine import QueryEngine
+from knowstack.config.schema import KnowStackConfig
+
+config = KnowStackConfig(repo_path=Path("."))
+engine = QueryEngine(config)
+result = engine.query_dsl("FIND function WHERE tag = auth")
+# result.nodes, result.paths, result.context (LLM-ready string), result.intent
+```
+
 ## Adding a language
 
 1. `pip install tree-sitter-<lang>`
@@ -74,10 +94,7 @@ tests/
     └── test_ingestion_pipeline.py
 ```
 
-Integration tests are marked `@pytest.mark.integration`. Run them with:
-```bash
-pytest -m integration
-```
+Integration tests are marked `@pytest.mark.integration`. Unit tests have no I/O and run against `tests/fixtures/` synthetic repos.
 
 ## Design principles
 
@@ -85,13 +102,13 @@ pytest -m integration
 - **Embeddable > server-based**: Kuzu + ChromaDB need no daemon
 - **Frozen models**: all `BaseNode` subclasses use `ConfigDict(frozen=True)` — no mutation in pipeline
 - **Idempotent writes**: `MERGE` (not `CREATE`) throughout the writer
-- **Offline-first**: embeddings use a local model; no API key required for basic use
+- **Offline-first**: embeddings use a local model (BAAI/bge-small-en-v1.5); no API key required for basic use. `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` are optional for LLM-powered query building only.
 
 ## Current phase: MVP (Phase 1-3 complete)
 
 - ✅ Phase 1: Core ingestion (Python parser, Kuzu, ChromaDB)
 - ✅ Phase 2: Query layer (DSL, hybrid retrieval, context packing)
 - ✅ Phase 3: NL integration (rule-based + LLM-optional)
-- 🔲 Phase 4: Scale & incremental hardening (partial pipeline exists, needs benchmarking)
-- 🔲 Phase 5: HTTP API (`knowstack serve`)
+- 🔲 Phase 4: Scale & incremental hardening (partial pipeline exists in `knowstack/incremental/`, needs benchmarking)
+- 🔲 Phase 5: HTTP API (`knowstack serve` — FastAPI + Uvicorn, install with `.[serve]`)
 - 🔲 Phase 6: Multi-repo / org-wide support
