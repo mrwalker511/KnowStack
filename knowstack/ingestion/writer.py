@@ -139,8 +139,10 @@ class GraphWriter:
             row["end_line"] = span.end_line
         else:
             row["file_path"] = getattr(node, "file_path", "")
-            row["start_line"] = 0
-            row["end_line"] = 0
+            # File/Directory nodes have no start_line/end_line columns in the schema
+            if not isinstance(node, (FileNode, DirectoryNode)):
+                row["start_line"] = 0
+                row["end_line"] = 0
 
         # Type-specific fields
         if isinstance(node, FileNode):

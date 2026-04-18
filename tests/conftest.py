@@ -1,9 +1,12 @@
 """Shared pytest fixtures for KnowStack tests."""
+import shutil
+
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 
 from knowstack.config.schema import KnowStackConfig
+from knowstack.ingestion.pipeline import IngestionPipeline
 from knowstack.ingestion.scanner import FileRecord
 from knowstack.models.enums import Language
 
@@ -64,3 +67,23 @@ def models_file_record() -> FileRecord:
         content=content,
         content_hash=content_hash(content),
     )
+
+
+@pytest.fixture
+def indexed_repo(tmp_path: Path):
+    """Copy python_sample to tmp_path, run full index; yield (repo_dir, config).
+
+    The Kuzu schema is already initialized; callers can open GraphStore(config.db_path)
+    directly to query or pass to PartialPipeline.
+    """
+    repo_dir = tmp_path / "repo"
+    shutil.copytree(PYTHON_SAMPLE, repo_dir)
+    config = KnowStackConfig(
+        repo_path=repo_dir,
+        db_path=tmp_path / "graph.kuzu",
+        vector_db_path=str(tmp_path / "vectors"),
+        enable_git_enrichment=False,
+        embedding_model="BAAI/bge-small-en-v1.5",
+    )
+    IngestionPipeline(config).run(show_progress=False)
+    yield repo_dir, config

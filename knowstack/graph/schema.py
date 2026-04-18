@@ -165,7 +165,8 @@ REL_TABLES: dict[str, str] = {
             FROM File TO Test,
             FROM File TO ConfigFile,
             FROM Class TO Method,
-            edge_id STRING
+            edge_id STRING,
+            confidence DOUBLE
         )
     """,
     "IMPORTS": """
@@ -227,14 +228,16 @@ REL_TABLES: dict[str, str] = {
             FROM Function TO Test,
             FROM Method TO Test,
             FROM Class TO Test,
-            edge_id STRING
+            edge_id STRING,
+            confidence DOUBLE
         )
     """,
     "EXPOSES_ENDPOINT": """
         CREATE REL TABLE IF NOT EXISTS EXPOSES_ENDPOINT(
             FROM Function TO ApiEndpoint,
             FROM Method TO ApiEndpoint,
-            edge_id STRING
+            edge_id STRING,
+            confidence DOUBLE
         )
     """,
     "DEFINES": """
@@ -243,7 +246,8 @@ REL_TABLES: dict[str, str] = {
             FROM File TO Class,
             FROM File TO Interface,
             FROM File TO TypeAlias,
-            edge_id STRING
+            edge_id STRING,
+            confidence DOUBLE
         )
     """,
 }
