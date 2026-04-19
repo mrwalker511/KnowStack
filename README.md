@@ -109,6 +109,7 @@ See [docs/configuration.md](docs/configuration.md) for all options.
 | Parser | tree-sitter | Multi-language, error-tolerant, byte offsets |
 | Vectors | ChromaDB (embedded) | Persistent, metadata-filtered ANN, no server |
 | Embeddings | bge-small-en-v1.5 | CPU-fast, high quality, no API dependency |
+| LLM (optional) | Ollama / Anthropic / OpenAI | NL→DSL translation; Ollama runs fully offline |
 | Language | Python 3.11+ | Rich ecosystem for all three concerns |
 
 ## License

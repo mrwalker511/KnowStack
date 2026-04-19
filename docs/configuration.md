@@ -68,10 +68,12 @@ default_top_k = 20
 max_call_depth = 10
 
 # ── LLM (optional — enables --mode nl and DSL generation) ────────────────────
-# "anthropic" or "openai" — set API key via environment variable
+# "anthropic", "openai", or "ollama" — Ollama requires no API key
 llm_provider = "anthropic"
 llm_model = "claude-haiku-4-5-20251001"
 # API key: set ANTHROPIC_API_KEY or OPENAI_API_KEY env var instead of here
+# Ollama base URL (only used when llm_provider = "ollama")
+# llm_ollama_base_url = "http://localhost:11434"
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 log_level = "INFO"  # DEBUG | INFO | WARNING | ERROR

@@ -28,7 +28,24 @@ with QueryEngine(config) as engine:
 
 ## Pattern 2: Natural language query with LLM-generated DSL
 
-Configure an LLM to handle NL→DSL translation:
+Configure an LLM to handle NL→DSL translation. Three providers are supported.
+
+### Option A: Ollama (fully local, no API key)
+
+```toml
+# knowstack.toml
+[knowstack]
+llm_provider = "ollama"
+llm_model = "qwen2.5-coder:7b"
+# llm_ollama_base_url = "http://localhost:11434"  # default
+```
+
+Pull the model and start Ollama once:
+```bash
+ollama pull qwen2.5-coder:7b
+```
+
+### Option B: Anthropic
 
 ```toml
 # knowstack.toml
@@ -37,9 +54,21 @@ llm_provider = "anthropic"
 llm_model = "claude-haiku-4-5-20251001"
 ```
 
-Set your API key:
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### Option C: OpenAI
+
+```toml
+# knowstack.toml
+[knowstack]
+llm_provider = "openai"
+llm_model = "gpt-4o-mini"
+```
+
+```bash
+export OPENAI_API_KEY=sk-...
 ```
 
 Then use `--mode nl`:
@@ -110,4 +139,30 @@ with QueryEngine(config) as engine:
         messages=[{"role": "user", "content": user_question}],
     )
     print(response.content[0].text)
+```
+
+## Using with Ollama (fully offline)
+
+```python
+import httpx
+from knowstack.config.loader import load_config
+from knowstack.retrieval.query_engine import QueryEngine
+
+config = load_config(repo_path=Path("."))
+
+with QueryEngine(config) as engine:
+    result = engine.query_nl(user_question)
+    context = engine.pack_context(result, max_tokens=4000)
+
+    response = httpx.post(
+        "http://localhost:11434/v1/chat/completions",
+        json={
+            "model": "qwen2.5-coder:7b",
+            "messages": [
+                {"role": "system", "content": f"You are a code assistant. Use this context:\n\n{context}"},
+                {"role": "user", "content": user_question},
+            ],
+        },
+    )
+    print(response.json()["choices"][0]["message"]["content"])
 ```
