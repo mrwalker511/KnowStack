@@ -89,7 +89,8 @@ tests/
 │   ├── test_normalizer.py
 │   ├── test_context_packer.py
 │   ├── test_ranker.py
-│   └── test_intent_classifier.py
+│   ├── test_intent_classifier.py
+│   └── test_query_builder.py
 └── integration/              # end-to-end pipeline tests (slower)
     └── test_ingestion_pipeline.py
 ```
@@ -102,7 +103,7 @@ Integration tests are marked `@pytest.mark.integration`. Unit tests have no I/O 
 - **Embeddable > server-based**: Kuzu + ChromaDB need no daemon
 - **Frozen models**: all `BaseNode` subclasses use `ConfigDict(frozen=True)` — no mutation in pipeline
 - **Idempotent writes**: `MERGE` (not `CREATE`) throughout the writer
-- **Offline-first**: embeddings use a local model (BAAI/bge-small-en-v1.5); no API key required for basic use. `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` are optional for LLM-powered query building only.
+- **Offline-first**: embeddings use a local model (BAAI/bge-small-en-v1.5); no API key required for basic use. `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` are optional; `llm_provider = "ollama"` runs fully local with no key at all.
 
 ## Current phase: MVP (Phase 1-3 complete)
 
