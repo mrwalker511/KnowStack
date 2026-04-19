@@ -63,7 +63,10 @@ class NLQueryBuilder:
         """Return (intent, dsl_query). dsl may be empty for pure semantic queries."""
         intent = self._classifier.classify(question)
 
-        if self._config.llm_provider and self._config.llm_api_key:
+        llm_ready = self._config.llm_provider and (
+            self._config.llm_provider == "ollama" or self._config.llm_api_key
+        )
+        if llm_ready:
             dsl = self._llm_build(question)
             if dsl:
                 return intent, dsl
@@ -93,6 +96,8 @@ class NLQueryBuilder:
                 return self._anthropic_build(question)
             elif self._config.llm_provider == "openai":
                 return self._openai_build(question)
+            elif self._config.llm_provider == "ollama":
+                return self._ollama_build(question)
         except Exception as exc:
             log.warning("LLM DSL generation failed: %s", exc)
         return ""
@@ -123,5 +128,23 @@ class NLQueryBuilder:
                 "temperature": 0,
             },
             timeout=10,
+        )
+        return resp.json()["choices"][0]["message"]["content"].strip()
+
+    def _ollama_build(self, question: str) -> str:
+        import httpx
+        base_url = self._config.llm_ollama_base_url.rstrip("/")
+        resp = httpx.post(
+            f"{base_url}/v1/chat/completions",
+            json={
+                "model": self._config.llm_model or "qwen2.5-coder:7b",
+                "messages": [
+                    {"role": "system", "content": _LLM_SYSTEM_PROMPT},
+                    {"role": "user", "content": question},
+                ],
+                "max_tokens": 128,
+                "temperature": 0,
+            },
+            timeout=30,
         )
         return resp.json()["choices"][0]["message"]["content"].strip()

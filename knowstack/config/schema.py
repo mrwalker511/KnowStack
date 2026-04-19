@@ -59,9 +59,10 @@ class KnowStackConfig(BaseModel):
     default_top_k: int = 20
 
     # ── LLM (Phase 3) ────────────────────────────────────────────────────────
-    llm_provider: Optional[str] = None  # "anthropic" | "openai" | None
+    llm_provider: Optional[str] = None  # "anthropic" | "openai" | "ollama" | None
     llm_model: Optional[str] = None
     llm_api_key: Optional[str] = None  # Prefer env var ANTHROPIC_API_KEY / OPENAI_API_KEY
+    llm_ollama_base_url: str = "http://localhost:11434"
 
     # ── Logging ──────────────────────────────────────────────────────────────
     log_level: str = "INFO"
