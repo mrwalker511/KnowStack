@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import fnmatch
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -86,7 +87,8 @@ class Scanner:
 
     def _walk(self):
         """Yield all file paths that pass all filters."""
-        for dirpath, dirnames, filenames in (self._root).walk():  # type: ignore[attr-defined]
+        for dirpath_str, dirnames, filenames in os.walk(self._root):
+            dirpath = Path(dirpath_str)
             # Prune directories in-place (modifies dirnames to control recursion)
             dirnames[:] = [
                 d for d in dirnames

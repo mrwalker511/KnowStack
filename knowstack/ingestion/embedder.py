@@ -74,6 +74,29 @@ class Embedder:
         log.info("Embedded %d nodes into ChromaDB", total)
         return total
 
+    def embed_by_files(self, store: GraphStore, file_paths: list[str]) -> int:
+        """Embed only nodes whose file_path is in the given set. Returns count embedded."""
+        total = 0
+        fps = list(file_paths)
+        if not fps:
+            return 0
+        for table in _NODE_TABLES:
+            try:
+                rows = store.cypher(
+                    f"MATCH (n:{table}) WHERE n.file_path IN $fps "
+                    f"RETURN n.node_id AS id, n.fqn AS fqn, n.name AS name, "
+                    f"n.language AS lang, n.file_path AS file_path, "
+                    f"n.docstring AS doc, n.importance_score AS score",
+                    {"fps": fps},
+                )
+            except Exception as exc:
+                log.warning("Failed to fetch %s nodes for embedding: %s", table, exc)
+                continue
+            for i in range(0, len(rows), self._batch_size):
+                total += self._embed_batch(table, rows[i : i + self._batch_size])
+        log.info("Embedded %d nodes (targeted, %d files)", total, len(fps))
+        return total
+
     def embed_nodes(self, nodes: list[dict[str, Any]]) -> int:
         """Embed a specific list of node dicts (used during incremental re-index)."""
         return self._embed_batch("mixed", nodes)

@@ -166,8 +166,9 @@ class _ParseContext:
         name = self._text(name_node)
         fqn = self._make_fqn(name)
         span = self._span(node)
-        is_async = node.type == "async_function_definition" or (
-            node.prev_sibling and node.prev_sibling.type == "async"
+        is_async = bool(
+            node.type == "async_function_definition"
+            or (node.prev_sibling and node.prev_sibling.type == "async")
         )
         params = self._extract_params(node)
         return_type = self._extract_return_type(node)

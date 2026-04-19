@@ -42,8 +42,11 @@ class PartialPipeline:
         )
 
         # Step 1: Delete stale data
-        all_changed_paths = change_set.modified + change_set.deleted
-        for rel_path in [str(p.relative_to(self._config.repo_path)) for p in change_set.modified] + change_set.deleted:
+        changed_rel_paths = (
+            [str(p.relative_to(self._config.repo_path)) for p in change_set.modified]
+            + change_set.deleted
+        )
+        for rel_path in changed_rel_paths:
             log.debug("Removing stale data for %s", rel_path)
             self._store.delete_nodes_by_file(rel_path)
             embedder.delete_by_file(rel_path)
@@ -78,7 +81,9 @@ class PartialPipeline:
             report.nodes_written = graph.node_count
             report.edges_written = graph.edge_count
 
-            report.nodes_embedded = embedder.embed_all(self._store)
+            added_rel = [str(p.relative_to(self._config.repo_path)) for p in change_set.added]
+            modified_rel = [str(p.relative_to(self._config.repo_path)) for p in change_set.modified]
+            report.nodes_embedded = embedder.embed_by_files(self._store, added_rel + modified_rel)
 
         report.duration_seconds = time.monotonic() - start
         log.info("Incremental re-index done: %s", report.summary())
