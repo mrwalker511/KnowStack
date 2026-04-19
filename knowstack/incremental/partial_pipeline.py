@@ -85,6 +85,53 @@ class PartialPipeline:
             modified_rel = [str(p.relative_to(self._config.repo_path)) for p in change_set.modified]
             report.nodes_embedded = embedder.embed_by_files(self._store, added_rel + modified_rel)
 
+        # Step 3: Recompute centrality on the full graph (PageRank is a global property)
+        self._recompute_centrality()
+
         report.duration_seconds = time.monotonic() - start
         log.info("Incremental re-index done: %s", report.summary())
         return report
+
+    def _recompute_centrality(self) -> None:
+        """Recompute PageRank from the full Kuzu graph and write scores back."""
+        try:
+            import networkx as nx
+            from knowstack.ingestion.writer import _NODE_TABLE_MAP
+
+            G: nx.DiGraph = nx.DiGraph()
+            for rel in ("CALLS", "IMPORTS"):
+                try:
+                    rows = self._store.cypher(
+                        f"MATCH (a)-[:{rel}]->(b) RETURN a.node_id AS src, b.node_id AS dst"
+                    )
+                    for r in rows:
+                        G.add_edge(r["src"], r["dst"])
+                except Exception:
+                    pass
+
+            if G.number_of_nodes() == 0:
+                return
+
+            pr = nx.pagerank(G, alpha=0.85, max_iter=100)
+
+            for table in _NODE_TABLE_MAP.values():
+                try:
+                    rows = self._store.cypher(
+                        f"MATCH (n:{table}) RETURN n.node_id AS id, n.change_frequency AS cf"
+                    )
+                except Exception:
+                    continue
+                for row in rows:
+                    nid = row["id"]
+                    if nid not in pr:
+                        continue
+                    score = pr[nid]
+                    cf = float(row["cf"] or 0.0)
+                    self._store.cypher(
+                        f"MATCH (n:{table} {{node_id: $id}}) "
+                        "SET n.centrality_score = $cs, n.importance_score = $is",
+                        {"id": nid, "cs": score, "is": score * (1 + cf)},
+                    )
+            log.debug("Centrality recomputed across %d nodes", len(pr))
+        except Exception as exc:
+            log.warning("Centrality recomputation failed: %s", exc)
