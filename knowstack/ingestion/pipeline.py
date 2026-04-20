@@ -97,7 +97,8 @@ class IngestionPipeline:
             progress.update(task, description="Writing graph…")
             store = GraphStore(self._config.db_path)
             store.initialize_schema()
-            writer = GraphWriter(store)
+            repo_id = self._config.repo_id or str(self._config.repo_path)
+            writer = GraphWriter(store, repo_id=repo_id)
             counts = writer.write(graph)
             report.nodes_written = graph.node_count
             report.edges_written = graph.edge_count

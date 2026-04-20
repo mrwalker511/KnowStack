@@ -58,6 +58,9 @@ class KnowStackConfig(BaseModel):
     context_max_tokens: int = 6000
     default_top_k: int = 20
 
+    # ── Multi-repo (Phase 6) ─────────────────────────────────────────────────
+    repo_id: str = ""  # Identifier for this repo in multi-repo workspaces
+
     # ── LLM (Phase 3) ────────────────────────────────────────────────────────
     llm_provider: Optional[str] = None  # "anthropic" | "openai" | "ollama" | None
     llm_model: Optional[str] = None

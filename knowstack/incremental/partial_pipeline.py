@@ -76,7 +76,8 @@ class PartialPipeline:
             enricher = Enricher(self._config.repo_path)
             graph = enricher.enrich(graph)
 
-            writer = GraphWriter(self._store)
+            repo_id = self._config.repo_id or str(self._config.repo_path)
+            writer = GraphWriter(self._store, repo_id=repo_id)
             writer.write(graph)
             report.nodes_written = graph.node_count
             report.edges_written = graph.edge_count

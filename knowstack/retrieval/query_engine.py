@@ -84,10 +84,10 @@ class QueryEngine:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def query_dsl(self, dsl: str) -> QueryResult:
+    def query_dsl(self, dsl: str, repo_id: str | None = None) -> QueryResult:
         """Execute a KnowStack DSL query (FIND / DEPENDENTS / IMPACT / PATH)."""
         try:
-            nodes = self._graph.execute_dsl(dsl)
+            nodes = self._graph.execute_dsl(dsl, repo_id=repo_id)
             ranked = self._ranker.rank(nodes)
             context = self._packer.pack(ranked, query=dsl)
             return QueryResult(query=dsl, intent=QueryIntent.STRUCTURAL,

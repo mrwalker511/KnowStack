@@ -33,6 +33,7 @@ class BaseNode(BaseModel):
     name: str  # Short unqualified name: "authenticate"
     fqn: str  # Fully-qualified name: "src.auth.service.AuthService.authenticate"
     language: Language
+    repo_id: str = ""  # Repository identifier — set by the ingestion pipeline
     source_span: Optional[SourceSpan] = None
     docstring: Optional[str] = None  # First docstring/comment, ≤512 chars
     tags: list[str] = Field(default_factory=list)  # auto-detected + user-defined

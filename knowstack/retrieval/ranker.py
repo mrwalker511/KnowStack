@@ -25,6 +25,7 @@ class RankedNode:
     node_type: str
     file_path: str
     language: str
+    repo_id: str = ""
     signature: str = ""
     docstring: str = ""
     start_line: int = 0
@@ -66,6 +67,7 @@ class RankedNode:
             node_type=str(g("node_type") or ""),
             file_path=str(g("file_path")),
             language=str(g("language")),
+            repo_id=str(g("repo_id") or ""),
             signature=str(g("signature") or ""),
             docstring=str(g("docstring") or ""),
             start_line=int(g("start_line") or 0),
