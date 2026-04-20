@@ -111,7 +111,10 @@ class _ParseContext:
         span = self._span(node)
 
         bases = self._extract_bases(node)
-        is_orm = any(b in _ORM_BASES or b.endswith(".Model") for b in bases)
+        is_orm = (
+            any(b in _ORM_BASES or b.endswith(".Model") for b in bases)
+            and self._has_orm_body(node)
+        )
 
         docstring = self._extract_docstring(node.child_by_field_name("body"))
 
@@ -365,6 +368,14 @@ class _ParseContext:
                 if child.type not in (",", "(", ")"):
                     bases.append(self._text(child))
         return bases
+
+    def _has_orm_body(self, class_node: Node) -> bool:
+        """Return True only if the class body has SQLAlchemy/Django ORM markers."""
+        body = class_node.child_by_field_name("body")
+        if not body:
+            return False
+        body_text = self._text(body)
+        return "__tablename__" in body_text or "Column(" in body_text
 
     def _extract_params(self, fn_node: Node) -> list[str]:
         params: list[str] = []
