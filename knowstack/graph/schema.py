@@ -6,12 +6,12 @@ Relationship tables declare which node table pairs they connect.
 Schema version is bumped whenever DDL changes — migrations.py handles upgrades.
 """
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # ── Node table DDL ───────────────────────────────────────────────────────────
 # Common columns on every node table:
 #   node_id STRING PRIMARY KEY
-#   name STRING, fqn STRING, language STRING
+#   name STRING, fqn STRING, language STRING, repo_id STRING
 #   docstring STRING, tags STRING (JSON array)
 #   change_frequency DOUBLE, centrality_score DOUBLE, importance_score DOUBLE
 
@@ -20,6 +20,7 @@ _COMMON_NODE_COLS = """
     name STRING,
     fqn STRING,
     language STRING,
+    repo_id STRING,
     docstring STRING,
     tags STRING,
     change_frequency DOUBLE,

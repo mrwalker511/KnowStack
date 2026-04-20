@@ -47,13 +47,17 @@ class GraphRetriever:
 
     # ── Public interface ──────────────────────────────────────────────────────
 
-    def find(self, node_type: str | None, filters: list[tuple[str, str, str]], limit: int | None = None) -> list[RankedNode]:
+    def find(self, node_type: str | None, filters: list[tuple[str, str, str]], limit: int | None = None, repo_id: str | None = None) -> list[RankedNode]:
         """Execute a FIND query."""
         lim = limit or self._limit
         table = _NODE_TYPE_MAP.get((node_type or "*").lower()) if node_type else None
 
         where_clauses: list[str] = []
         params: dict[str, Any] = {"limit": lim}
+
+        if repo_id:
+            where_clauses.append("n.repo_id = $repo_id")
+            params["repo_id"] = repo_id
 
         for field, op, value in filters:
             val = value.strip("\"'")
@@ -88,10 +92,10 @@ class GraphRetriever:
             log.warning("FIND query failed: %s — %s", cypher, exc)
             return []
 
-    def dependents(self, target: str, depth: int = 3, limit: int | None = None) -> list[RankedNode]:
+    def dependents(self, target: str, depth: int = 3, limit: int | None = None, repo_id: str | None = None) -> list[RankedNode]:
         """Find all nodes that depend on target (reverse reachability)."""
         lim = limit or self._limit
-        node_id = self._resolve_target(target)
+        node_id = self._resolve_target(target, repo_id=repo_id)
         if not node_id:
             return []
 
@@ -108,14 +112,14 @@ class GraphRetriever:
             log.warning("DEPENDENTS query failed: %s", exc)
             return []
 
-    def impact(self, target: str, depth: int = 3, limit: int | None = None) -> list[RankedNode]:
+    def impact(self, target: str, depth: int = 3, limit: int | None = None, repo_id: str | None = None) -> list[RankedNode]:
         """Impact analysis: what could break if target changes."""
-        return self.dependents(target, depth=depth, limit=limit)
+        return self.dependents(target, depth=depth, limit=limit, repo_id=repo_id)
 
-    def path(self, src: str, dst: str, max_depth: int = 6) -> list[list[RankedNode]]:
+    def path(self, src: str, dst: str, max_depth: int = 6, repo_id: str | None = None) -> list[list[RankedNode]]:
         """Find shortest paths between two symbols."""
-        src_id = self._resolve_target(src)
-        dst_id = self._resolve_target(dst)
+        src_id = self._resolve_target(src, repo_id=repo_id)
+        dst_id = self._resolve_target(dst, repo_id=repo_id)
         if not src_id or not dst_id:
             return []
 
@@ -160,7 +164,7 @@ class GraphRetriever:
 
     # ── DSL parser ────────────────────────────────────────────────────────────
 
-    def execute_dsl(self, query: str) -> list[RankedNode]:
+    def execute_dsl(self, query: str, repo_id: str | None = None) -> list[RankedNode]:
         """Parse and execute a KnowStack DSL query string."""
         toks = _tokens(query.strip())
         if not toks:
@@ -168,21 +172,21 @@ class GraphRetriever:
 
         keyword = toks[0].upper()
         if keyword == "FIND":
-            return self._parse_find(toks[1:])
+            return self._parse_find(toks[1:], repo_id=repo_id)
         elif keyword == "DEPENDENTS":
             target = toks[1].strip("\"'") if len(toks) > 1 else ""
-            return self.dependents(target)
+            return self.dependents(target, repo_id=repo_id)
         elif keyword == "IMPACT":
             target = toks[1].strip("\"'") if len(toks) > 1 else ""
             depth = int(toks[3]) if len(toks) > 3 and toks[2].upper() == "DEPTH" else 3
-            return self.impact(target, depth=depth)
+            return self.impact(target, depth=depth, repo_id=repo_id)
         elif keyword == "PATH":
-            return self._parse_path(toks[1:])
+            return self._parse_path(toks[1:], repo_id=repo_id)
         else:
             log.warning("Unknown DSL keyword: %s", keyword)
             return []
 
-    def _parse_find(self, toks: list[str]) -> list[RankedNode]:
+    def _parse_find(self, toks: list[str], repo_id: str | None = None) -> list[RankedNode]:
         node_type: str | None = None
         filters: list[tuple[str, str, str]] = []
         limit = self._limit
@@ -210,9 +214,9 @@ class GraphRetriever:
             else:
                 i += 1
 
-        return self.find(node_type, filters, limit=limit)
+        return self.find(node_type, filters, limit=limit, repo_id=repo_id)
 
-    def _parse_path(self, toks: list[str]) -> list[RankedNode]:
+    def _parse_path(self, toks: list[str], repo_id: str | None = None) -> list[RankedNode]:
         # PATH FROM "src" TO "dst"
         src = dst = ""
         i = 0
@@ -226,27 +230,29 @@ class GraphRetriever:
                 i += 2
             else:
                 i += 1
-        paths = self.path(src, dst)
+        paths = self.path(src, dst, repo_id=repo_id)
         return [node for path in paths for node in path]
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
-    def _resolve_target(self, target: str) -> str | None:
+    def _resolve_target(self, target: str, repo_id: str | None = None) -> str | None:
         """Resolve a symbol name or FQN to a node_id."""
         if not target:
             return None
-        # Try exact FQN match
+        repo_clause = " AND n.repo_id = $rid" if repo_id else ""
+        base_params: dict[str, Any] = {"t": target}
+        if repo_id:
+            base_params["rid"] = repo_id
         rows = self._store.cypher(
-            "MATCH (n) WHERE n.fqn = $t OR n.name = $t RETURN n.node_id AS id LIMIT 1",
-            {"t": target},
+            f"MATCH (n) WHERE (n.fqn = $t OR n.name = $t){repo_clause} RETURN n.node_id AS id LIMIT 1",
+            base_params,
         )
         if rows:
             return str(rows[0]["id"])
-        # Fuzzy: contains
         rows = self._store.cypher(
-            "MATCH (n) WHERE n.fqn CONTAINS $t OR n.name CONTAINS $t RETURN n.node_id AS id "
-            "ORDER BY n.importance_score DESC LIMIT 1",
-            {"t": target},
+            f"MATCH (n) WHERE (n.fqn CONTAINS $t OR n.name CONTAINS $t){repo_clause} "
+            "RETURN n.node_id AS id ORDER BY n.importance_score DESC LIMIT 1",
+            base_params,
         )
         return str(rows[0]["id"]) if rows else None
 

@@ -57,8 +57,9 @@ _EDGE_TABLE_MAP: dict[EdgeType, tuple[str, str, str]] = {
 
 
 class GraphWriter:
-    def __init__(self, store: GraphStore) -> None:
+    def __init__(self, store: GraphStore, repo_id: str = "") -> None:
         self._store = store
+        self._repo_id = repo_id
 
     def write(self, graph: NormalizedGraph) -> dict[str, int]:
         """Write all nodes and edges. Returns counts per table."""
@@ -124,6 +125,7 @@ class GraphWriter:
             "name": node.name,
             "fqn": node.fqn,
             "language": str(node.language),
+            "repo_id": self._repo_id or node.repo_id,
             "docstring": node.docstring or "",
             "tags": json.dumps(node.tags),
             "change_frequency": node.change_frequency,

@@ -13,8 +13,26 @@ from .store import GraphStore
 
 log = logging.getLogger(__name__)
 
+_NODE_TABLES = [
+    "File", "Directory", "Class", "Function", "Method",
+    "Interface", "TypeAlias", "ApiEndpoint", "DbModel", "Test", "ConfigFile",
+]
+
+
+def _migrate_v2(store: GraphStore) -> None:
+    """Add repo_id column to all node tables (multi-repo support)."""
+    for table in _NODE_TABLES:
+        try:
+            store.cypher(f"ALTER TABLE {table} ADD repo_id STRING DEFAULT \"\"")
+            log.debug("Added repo_id to %s", table)
+        except Exception:
+            pass  # Column already exists in fresh installs
+
+
 # Maps from_version -> migration callable
-MIGRATIONS: dict[int, object] = {}
+MIGRATIONS: dict[int, object] = {
+    2: _migrate_v2,
+}
 
 
 def migrate(store: GraphStore) -> None:
