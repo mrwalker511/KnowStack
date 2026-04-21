@@ -11,9 +11,9 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
+from knowstack.ingestion.parsers.base import ParseResult
 from knowstack.models.edges import BaseEdge, ImportsEdge
 from knowstack.models.nodes import BaseNode
-from knowstack.ingestion.parsers.base import ParseResult
 
 log = logging.getLogger(__name__)
 
@@ -128,5 +128,11 @@ class Normalizer:
                 update={"dst_id": candidates[0], "confidence": min(edge.confidence, 0.7)}
             )
 
-        # Unresolvable — drop
+        # Unresolvable — drop with a debug trace so the gap is visible
+        log.debug(
+            "Dropping unresolvable edge %s (%s → %s)",
+            edge.edge_type,
+            edge.src_id,
+            dst_id,
+        )
         return None

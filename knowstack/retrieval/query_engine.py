@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
-from pathlib import Path
 from typing import Any
 
 from knowstack.config.schema import KnowStackConfig
@@ -112,17 +111,30 @@ class QueryEngine:
     def query_hybrid(self, text: str, top_k: int | None = None) -> QueryResult:
         """Hybrid: graph structural + semantic vector fusion."""
         k = top_k or self._config.default_top_k
+        graph_results: list[RankedNode] = []
+        vec_results: list[RankedNode] = []
+
         try:
-            # Run both retrievers
             graph_results = self._graph.find(None, [], limit=k)
+        except Exception as exc:
+            log.warning("Hybrid query: graph retriever failed, continuing with vectors only: %s", exc)
+
+        try:
             vec_results = self._vector.search(text, top_k=k)
+        except Exception as exc:
+            log.warning("Hybrid query: vector retriever failed, continuing with graph only: %s", exc)
+
+        if not graph_results and not vec_results:
+            return QueryResult(query=text, intent=QueryIntent.HYBRID,
+                               error="Both retrievers failed — check that the index has been built.")
+        try:
             fused = self._hybrid.fuse(graph_results, vec_results, top_k=k)
             ranked = self._ranker.rank(fused, query_terms=text.split())
             context = self._packer.pack(ranked, query=text)
             return QueryResult(query=text, intent=QueryIntent.HYBRID,
                                nodes=ranked, context=context)
         except Exception as exc:
-            log.error("Hybrid query error: %s", exc)
+            log.error("Hybrid query fusion error: %s", exc)
             return QueryResult(query=text, intent=QueryIntent.HYBRID, error=str(exc))
 
     def query_impact(self, target: str, depth: int = 3) -> QueryResult:
@@ -171,7 +183,7 @@ class QueryEngine:
     def close(self) -> None:
         self._store.close()
 
-    def __enter__(self) -> "QueryEngine":
+    def __enter__(self) -> QueryEngine:
         return self
 
     def __exit__(self, *_: object) -> None:

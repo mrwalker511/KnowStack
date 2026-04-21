@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint typecheck fmt clean index query
+.PHONY: install install-dev test test-fast test-unit test-integration lint typecheck fmt clean index index-incremental query serve
 
 PYTHON := python3
 PIP    := pip
@@ -14,6 +14,12 @@ test:
 
 test-fast:
 	pytest -x -q --no-cov
+
+test-unit:
+	pytest -m "not integration" -q --no-cov
+
+test-integration:
+	pytest -m integration -v
 
 lint:
 	ruff check knowstack tests
@@ -40,3 +46,6 @@ index-incremental:
 
 query:
 	knowstack query --interactive
+
+serve:
+	knowstack serve $(REPO)

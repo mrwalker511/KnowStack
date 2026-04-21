@@ -9,8 +9,9 @@ from __future__ import annotations
 import logging
 
 from knowstack.ingestion.scanner import FileRecord
-from knowstack.models.enums import Language, NodeType
-from knowstack.models.nodes import ConfigFileNode, make_node_id
+from knowstack.models.edges import ContainsEdge, make_edge_id
+from knowstack.models.enums import EdgeType, Language, NodeType
+from knowstack.models.nodes import ConfigFileNode, FileNode, make_node_id
 from knowstack.models.source_span import SourceSpan
 
 from .base import BaseParser, ParseResult
@@ -33,11 +34,22 @@ class ConfigParser(BaseParser):
         result = ParseResult(file_record=record)
         try:
             fmt = _FORMAT_MAP.get(record.language, "unknown")
-            node = ConfigFileNode(
+            file_node = FileNode(
                 node_id=make_node_id(record.rel_path, record.rel_path),
-                node_type=NodeType.CONFIG_FILE,
+                node_type=NodeType.FILE,
                 name=record.abs_path.name,
                 fqn=record.rel_path,
+                language=record.language,
+                file_path=record.rel_path,
+                extension=record.extension,
+                size_bytes=record.size_bytes,
+                content_hash=record.content_hash,
+            )
+            config_node = ConfigFileNode(
+                node_id=make_node_id(record.rel_path, record.rel_path + ":config"),
+                node_type=NodeType.CONFIG_FILE,
+                name=record.abs_path.name,
+                fqn=record.rel_path + ":config",
                 language=record.language,
                 file_path=record.rel_path,
                 format=fmt,
@@ -47,7 +59,15 @@ class ConfigParser(BaseParser):
                     end_line=record.text.count("\n") + 1,
                 ),
             )
-            result.nodes.append(node)
+            result.nodes.append(file_node)
+            result.nodes.append(config_node)
+            result.edges.append(
+                ContainsEdge(
+                    edge_id=make_edge_id(file_node.node_id, EdgeType.CONTAINS, config_node.node_id),
+                    src_id=file_node.node_id,
+                    dst_id=config_node.node_id,
+                )
+            )
         except Exception as exc:
             result.errors.append(str(exc))
             log.debug("Config parse error in %s: %s", record.rel_path, exc)

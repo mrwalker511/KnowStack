@@ -21,6 +21,7 @@ class KnowStackConfig(BaseModel):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_device: str = "cpu"  # "cuda" if GPU available
     embedding_batch_size: int = 64
+    embed_limit: int = 0  # Max nodes to embed per table; 0 = unlimited
 
     # ── Ingestion filters ───────────────────────────────────────────────────
     max_file_size_bytes: int = 512 * 1024  # 512 KB

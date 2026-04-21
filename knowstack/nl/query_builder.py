@@ -76,9 +76,12 @@ class NLQueryBuilder:
     def _rule_build(self, question: str, intent: QueryIntent) -> str:
         entities = self._extractor.extract(question)
         primary = f'"{entities[0]}"' if entities else '"unknown"'
-        secondary = f'"{entities[1]}"' if len(entities) > 1 else '"unknown"'
 
         if intent == QueryIntent.PATH:
+            if len(entities) < 2:
+                # Can't build a valid PATH without two endpoints; fall back to DEPENDENTS
+                return f"DEPENDENTS {primary}" if entities else "FIND * LIMIT 20"
+            secondary = f'"{entities[1]}"'
             return f"PATH FROM {primary} TO {secondary}"
         elif intent == QueryIntent.IMPACT:
             return f"IMPACT {primary} DEPTH 3"
@@ -111,7 +114,8 @@ class NLQueryBuilder:
             system=_LLM_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": question}],
         )
-        return msg.content[0].text.strip()
+        content = msg.content[0].text if msg.content else ""
+        return content.strip()
 
     def _openai_build(self, question: str) -> str:
         import httpx
@@ -129,7 +133,10 @@ class NLQueryBuilder:
             },
             timeout=10,
         )
-        return resp.json()["choices"][0]["message"]["content"].strip()
+        resp.raise_for_status()
+        data = resp.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return content.strip()
 
     def _ollama_build(self, question: str) -> str:
         import httpx
@@ -147,4 +154,7 @@ class NLQueryBuilder:
             },
             timeout=30,
         )
-        return resp.json()["choices"][0]["message"]["content"].strip()
+        resp.raise_for_status()
+        data = resp.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return content.strip()

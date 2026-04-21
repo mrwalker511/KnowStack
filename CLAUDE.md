@@ -105,11 +105,11 @@ Integration tests are marked `@pytest.mark.integration`. Unit tests have no I/O 
 - **Idempotent writes**: `MERGE` (not `CREATE`) throughout the writer
 - **Offline-first**: embeddings use a local model (BAAI/bge-small-en-v1.5); no API key required for basic use. `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` are optional; `llm_provider = "ollama"` runs fully local with no key at all.
 
-## Current phase: MVP (Phase 1-3 complete)
+## Current phase: Phases 1–5 complete
 
 - ✅ Phase 1: Core ingestion (Python parser, Kuzu, ChromaDB)
 - ✅ Phase 2: Query layer (DSL, hybrid retrieval, context packing)
 - ✅ Phase 3: NL integration (rule-based + LLM-optional)
-- 🔲 Phase 4: Scale & incremental hardening (partial pipeline exists in `knowstack/incremental/`, needs benchmarking)
-- 🔲 Phase 5: HTTP API (`knowstack serve` — FastAPI + Uvicorn, install with `.[serve]`)
-- 🔲 Phase 6: Multi-repo / org-wide support
+- ✅ Phase 4: Scale & incremental hardening (`knowstack/incremental/`, benchmarked in `tests/benchmarks/`)
+- ✅ Phase 5: HTTP API (`knowstack serve` — FastAPI + Uvicorn, install with `.[serve]`)
+- 🔲 Phase 6: Multi-repo / org-wide support (workspace module in `knowstack/workspace/`, needs production hardening)
