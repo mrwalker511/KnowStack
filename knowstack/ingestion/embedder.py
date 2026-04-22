@@ -15,7 +15,6 @@ from sentence_transformers import SentenceTransformer
 
 from knowstack.graph.store import GraphStore
 from knowstack.models.enums import NodeType
-from knowstack.utils.text import make_embedding_doc
 
 log = logging.getLogger(__name__)
 
@@ -39,8 +38,10 @@ class Embedder:
         model_name: str = "BAAI/bge-small-en-v1.5",
         device: str = "cpu",
         batch_size: int = 64,
+        embed_limit: int = 0,
     ) -> None:
         self._batch_size = batch_size
+        self._embed_limit = embed_limit
         log.info("Loading embedding model: %s (device=%s)", model_name, device)
         self._model = SentenceTransformer(model_name, device=device)
 
@@ -58,10 +59,11 @@ class Embedder:
         total = 0
         for table in _NODE_TABLES:
             try:
+                limit_clause = f" LIMIT {self._embed_limit}" if self._embed_limit > 0 else ""
                 rows = store.cypher(
                     f"MATCH (n:{table}) RETURN n.node_id AS id, n.fqn AS fqn, "
                     f"n.name AS name, n.language AS lang, n.file_path AS file_path, "
-                    f"n.docstring AS doc, n.importance_score AS score LIMIT 100000"
+                    f"n.docstring AS doc, n.importance_score AS score{limit_clause}"
                 )
             except Exception as exc:
                 log.warning("Failed to fetch %s nodes for embedding: %s", table, exc)

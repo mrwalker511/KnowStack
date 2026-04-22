@@ -12,7 +12,6 @@ All signals are normalised to [0, 1] before combination.
 """
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -53,7 +52,7 @@ class RankedNode:
         )
 
     @classmethod
-    def from_graph_row(cls, row: dict[str, Any]) -> "RankedNode":
+    def from_graph_row(cls, row: dict[str, Any]) -> RankedNode:
         """Build a RankedNode from a Kuzu query result row."""
         # Kuzu returns node properties prefixed with "n."
         def g(key: str) -> Any:
@@ -89,8 +88,9 @@ class Ranker:
         if not nodes:
             return []
 
-        # Normalise centrality across this result set
+        # Normalise centrality and importance across this result set
         max_centrality = max((n.centrality_score for n in nodes), default=1.0) or 1.0
+        max_importance = max((n.importance_score for n in nodes), default=1.0) or 1.0
 
         for node in nodes:
             # Normalised centrality
@@ -100,8 +100,9 @@ class Ranker:
             if query_terms:
                 node.name_match_score = self._name_match(node, query_terms)
 
-            # Recency (change_frequency is 0-1; map to recency proxy)
-            node.recency_score = node.importance_score  # already incorporates freq
+            # Recency proxy: importance encodes change_frequency via enricher
+            # (importance = centrality * (1 + change_freq)); normalise to [0,1]
+            node.recency_score = node.importance_score / max_importance
 
         return sorted(nodes, key=lambda n: n.final_score, reverse=True)
 

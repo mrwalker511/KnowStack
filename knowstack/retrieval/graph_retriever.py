@@ -200,7 +200,7 @@ class GraphRetriever:
             tok = toks[i].upper()
             if tok == "WHERE" and i + 3 < len(toks):
                 i += 1
-                while i + 2 < len(toks):
+                while i + 3 <= len(toks):
                     field, op, value = toks[i], toks[i + 1], toks[i + 2]
                     filters.append((field.lower(), op, value))
                     i += 3
@@ -262,8 +262,12 @@ class GraphRetriever:
         flat: dict[str, Any] = {}
         for k, v in row.items():
             if hasattr(v, "__dict__"):  # Kuzu Node object
+                # Preserve the node's table name as node_type before flattening
+                table_name = getattr(v, "_label", None) or type(v).__name__
+                flat["node_type"] = table_name
                 for prop_k, prop_v in v.__dict__.items():
-                    flat[prop_k] = prop_v
+                    if not prop_k.startswith("_"):
+                        flat[prop_k] = prop_v
             elif isinstance(v, dict):
                 flat.update(v)
             else:

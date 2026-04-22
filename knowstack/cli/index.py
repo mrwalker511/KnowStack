@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 
 from knowstack.config.loader import load_config
+from knowstack.config.schema import KnowStackConfig
 from knowstack.ingestion.pipeline import IngestionPipeline
 from knowstack.utils.logging import setup_logging
 
@@ -62,14 +63,14 @@ def index(
         _print_report(report)
 
 
-def _run_incremental(config: object) -> None:
+def _run_incremental(config: KnowStackConfig) -> None:
     try:
         from knowstack.incremental.change_detector import ChangeDetector
         from knowstack.incremental.partial_pipeline import PartialPipeline
         from knowstack.graph.store import GraphStore
 
-        store = GraphStore(config.db_path)  # type: ignore[attr-defined]
-        detector = ChangeDetector(config.repo_path, store)  # type: ignore[attr-defined]
+        store = GraphStore(config.db_path)
+        detector = ChangeDetector(config.repo_path, store)
         change_set = detector.detect()
         console.print(
             f"Changes: [green]+{len(change_set.added)}[/green] "

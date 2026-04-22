@@ -92,7 +92,7 @@ class _ParseContext:
     def visit(self, node: Node) -> None:
         if node.type == "class_definition":
             self._visit_class(node)
-        elif node.type == "function_definition":
+        elif node.type in ("function_definition", "async_function_definition"):
             self._visit_function(node, inside_class=bool(self._class_stack))
         elif node.type in ("import_statement", "import_from_statement"):
             self._visit_import(node)
@@ -151,7 +151,7 @@ class _ParseContext:
         if body:
             self._class_stack.append(fqn)
             for child in body.children:
-                if child.type == "function_definition":
+                if child.type in ("function_definition", "async_function_definition"):
                     self._visit_function(child, inside_class=True)
                 elif child.type == "decorated_definition":
                     self._visit_decorated(child, inside_class=True)
@@ -169,10 +169,7 @@ class _ParseContext:
         name = self._text(name_node)
         fqn = self._make_fqn(name)
         span = self._span(node)
-        is_async = bool(
-            node.type == "async_function_definition"
-            or (node.prev_sibling and node.prev_sibling.type == "async")
-        )
+        is_async = node.type == "async_function_definition"
         params = self._extract_params(node)
         return_type = self._extract_return_type(node)
         docstring = self._extract_docstring(node.child_by_field_name("body"))
@@ -230,7 +227,11 @@ class _ParseContext:
             )
 
         self._res.nodes.append(fn_node)
-        parent_id = self._file_node.node_id
+        parent_id = (
+            make_node_id(self._rec.rel_path, self._class_stack[-1])
+            if inside_class and self._class_stack
+            else self._file_node.node_id
+        )
         self._emit_contains(parent_id, fn_node.node_id)
 
         if is_endpoint:
