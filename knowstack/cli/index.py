@@ -1,6 +1,5 @@
 """CLI: knowstack index — run the ingestion pipeline."""
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -23,7 +22,7 @@ def index(
         file_okay=False,
         dir_okay=True,
     ),
-    db_path: Optional[Path] = typer.Option(
+    db_path: Path | None = typer.Option(
         None, "--db", help="Override path to the Kuzu graph database."
     ),
     incremental: bool = typer.Option(
@@ -65,9 +64,9 @@ def index(
 
 def _run_incremental(config: KnowStackConfig) -> None:
     try:
+        from knowstack.graph.store import GraphStore
         from knowstack.incremental.change_detector import ChangeDetector
         from knowstack.incremental.partial_pipeline import PartialPipeline
-        from knowstack.graph.store import GraphStore
 
         store = GraphStore(config.db_path)
         detector = ChangeDetector(config.repo_path, store)

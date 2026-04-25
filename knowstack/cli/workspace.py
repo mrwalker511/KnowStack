@@ -1,6 +1,5 @@
 """CLI: knowstack workspace — manage multi-repo workspaces."""
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -39,7 +38,7 @@ def workspace_init(
 @app.command("add")
 def workspace_add(
     repo_path: Path = typer.Argument(..., help="Path to the repository to add."),
-    repo_id: Optional[str] = typer.Option(None, "--id", help="Unique repo identifier (default: directory name)."),
+    repo_id: str | None = typer.Option(None, "--id", help="Unique repo identifier (default: directory name)."),
     workspace_path: Path = typer.Option(Path("."), "--workspace", "-w", help="Workspace directory."),
 ) -> None:
     """Add a repository to the workspace."""
@@ -92,7 +91,7 @@ def workspace_list(
 
 @app.command("index")
 def workspace_index(
-    repo_id: Optional[str] = typer.Argument(None, help="Index only this repo (default: all)."),
+    repo_id: str | None = typer.Argument(None, help="Index only this repo (default: all)."),
     workspace_path: Path = typer.Option(Path("."), "--workspace", "-w"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
@@ -125,7 +124,7 @@ def workspace_index(
 @app.command("query")
 def workspace_query(
     query: str = typer.Argument(..., help="DSL or natural-language query."),
-    repo_id: Optional[str] = typer.Option(None, "--repo", "-r", help="Scope to a specific repo."),
+    repo_id: str | None = typer.Option(None, "--repo", "-r", help="Scope to a specific repo."),
     mode: str = typer.Option("auto", "--mode", "-m", help="Query mode: auto|dsl|semantic|nl|hybrid."),
     context: bool = typer.Option(False, "--context", "-c", help="Print LLM-ready context block."),
     workspace_path: Path = typer.Option(Path("."), "--workspace", "-w"),

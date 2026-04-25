@@ -1,3 +1,3 @@
-from .query_engine import QueryEngine, QueryResult, QueryIntent
+from .query_engine import QueryEngine, QueryIntent, QueryResult
 
 __all__ = ["QueryEngine", "QueryResult", "QueryIntent"]

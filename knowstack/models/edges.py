@@ -7,7 +7,6 @@ and optional metadata specific to the relationship type.
 from __future__ import annotations
 
 import hashlib
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -27,7 +26,7 @@ class BaseEdge(BaseModel):
     src_id: str
     dst_id: str
     confidence: float = 1.0  # 0–1: proven=1.0, heuristic=0.7, inferred=0.4
-    source_span: Optional[str] = None  # "file.py:42" where relationship observed
+    source_span: str | None = None  # "file.py:42" where relationship observed
 
 
 class ContainsEdge(BaseEdge):
@@ -69,12 +68,12 @@ class InstantiatesEdge(BaseEdge):
 
 class ReadsFromEdge(BaseEdge):
     edge_type: EdgeType = EdgeType.READS_FROM
-    access_pattern: Optional[str] = None  # "SELECT", "filter()", "findMany()"
+    access_pattern: str | None = None  # "SELECT", "filter()", "findMany()"
 
 
 class WritesToEdge(BaseEdge):
     edge_type: EdgeType = EdgeType.WRITES_TO
-    access_pattern: Optional[str] = None  # "INSERT", "save()", "create()"
+    access_pattern: str | None = None  # "INSERT", "save()", "create()"
 
 
 class TestedByEdge(BaseEdge):

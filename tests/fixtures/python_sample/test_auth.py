@@ -1,6 +1,6 @@
 """pytest tests for the auth module — for testing test extraction."""
 import pytest
-from auth import authenticate, logout
+from auth import authenticate
 
 
 def test_authenticate_returns_token():

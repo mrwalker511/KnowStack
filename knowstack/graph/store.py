@@ -64,7 +64,7 @@ class GraphStore:
         if not rows:
             return 0
         # Build per-property SET clause from first row's keys (all rows share same schema)
-        non_pk_cols = [k for k in rows[0].keys() if k != "node_id"]
+        non_pk_cols = [k for k in rows[0] if k != "node_id"]
         set_clause = ", ".join(f"n.{col} = row.{col}" for col in non_pk_cols)
         q = f"""
             UNWIND $rows AS row
@@ -91,7 +91,7 @@ class GraphStore:
         if not rows:
             return 0
         # Build per-property SET clause; src_id/dst_id are for MATCH only, not stored on r
-        extra_cols = [k for k in rows[0].keys() if k not in ("src_id", "dst_id", "edge_id")]
+        extra_cols = [k for k in rows[0] if k not in ("src_id", "dst_id", "edge_id")]
         set_parts = [f"r.{col} = row.{col}" for col in extra_cols]
         set_clause = ("SET " + ", ".join(set_parts)) if set_parts else ""
         q = f"""
@@ -133,7 +133,7 @@ class GraphStore:
             # Kuzu returns rows as lists; zip with column names
             if not rows:
                 cols = result.get_column_names()
-            rows.append(dict(zip(cols, row)))  # type: ignore[possibly-undefined]
+            rows.append(dict(zip(cols, row, strict=False)))  # type: ignore[possibly-undefined]
         return rows
 
     def node_count(self, table: str | None = None) -> int:
@@ -184,7 +184,7 @@ class GraphStore:
         self._conn.close()
         log.debug("Kuzu connection closed")
 
-    def __enter__(self) -> "GraphStore":
+    def __enter__(self) -> GraphStore:
         return self
 
     def __exit__(self, *_: object) -> None:

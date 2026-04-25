@@ -1,7 +1,7 @@
 """Unit tests for Phase 6 workspace support."""
-import pytest
 from pathlib import Path
 
+import pytest
 
 # ── WorkspaceConfig ───────────────────────────────────────────────────────────
 
@@ -98,8 +98,8 @@ def test_workspace_get_repo_unknown_raises(tmp_path):
 # ── Schema / model ────────────────────────────────────────────────────────────
 
 def test_base_node_has_repo_id():
-    from knowstack.models.nodes import FunctionNode, make_node_id
     from knowstack.models.enums import Language, NodeType
+    from knowstack.models.nodes import FunctionNode, make_node_id
     node = FunctionNode(
         node_id=make_node_id("/repo", "mod.fn"),
         node_type=NodeType.FUNCTION,
@@ -112,8 +112,8 @@ def test_base_node_has_repo_id():
 
 
 def test_base_node_repo_id_defaults_empty():
-    from knowstack.models.nodes import FunctionNode, make_node_id
     from knowstack.models.enums import Language, NodeType
+    from knowstack.models.nodes import FunctionNode, make_node_id
     node = FunctionNode(
         node_id=make_node_id("/repo", "mod.fn"),
         node_type=NodeType.FUNCTION,
@@ -175,7 +175,6 @@ def test_workspace_save_path_relative_for_in_tree_repo(tmp_path):
 
 def test_change_detector_passes_repo_id_to_query():
     """ChangeDetector._load_indexed_hashes must filter by repo_id."""
-    from pathlib import Path
     from knowstack.incremental.change_detector import ChangeDetector
 
     queries: list[str] = []
@@ -193,7 +192,6 @@ def test_change_detector_passes_repo_id_to_query():
 
 def test_change_detector_no_repo_id_fetches_all():
     """Without repo_id, ChangeDetector fetches all File nodes (single-repo mode)."""
-    from pathlib import Path
     from knowstack.incremental.change_detector import ChangeDetector
 
     queries: list[str] = []

@@ -4,7 +4,6 @@ Loaded from knowstack.toml (or .knowstack.toml) in the project root,
 with CLI flags able to override any field.
 """
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -63,9 +62,9 @@ class KnowStackConfig(BaseModel):
     repo_id: str = ""  # Identifier for this repo in multi-repo workspaces
 
     # ── LLM (Phase 3) ────────────────────────────────────────────────────────
-    llm_provider: Optional[str] = None  # "anthropic" | "openai" | "ollama" | None
-    llm_model: Optional[str] = None
-    llm_api_key: Optional[str] = None  # Prefer env var ANTHROPIC_API_KEY / OPENAI_API_KEY
+    llm_provider: str | None = None  # "anthropic" | "openai" | "ollama" | None
+    llm_model: str | None = None
+    llm_api_key: str | None = None  # Prefer env var ANTHROPIC_API_KEY / OPENAI_API_KEY
     llm_ollama_base_url: str = "http://localhost:11434"
 
     # ── Logging ──────────────────────────────────────────────────────────────

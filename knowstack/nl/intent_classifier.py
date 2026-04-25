@@ -13,7 +13,6 @@ Intent hierarchy:
 from __future__ import annotations
 
 import re
-from enum import StrEnum
 
 from knowstack.retrieval.query_engine import QueryIntent
 

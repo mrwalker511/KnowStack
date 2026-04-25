@@ -1,3 +1,12 @@
+from .edges import (
+    BaseEdge,
+    CallsEdge,
+    ContainsEdge,
+    ImportsEdge,
+    InheritsEdge,
+    ReadsFromEdge,
+    WritesToEdge,
+)
 from .enums import EdgeType, Language, NodeType
 from .nodes import (
     ApiEndpointNode,
@@ -12,15 +21,6 @@ from .nodes import (
     MethodNode,
     TestNode,
     TypeAliasNode,
-)
-from .edges import (
-    BaseEdge,
-    CallsEdge,
-    ContainsEdge,
-    ImportsEdge,
-    InheritsEdge,
-    ReadsFromEdge,
-    WritesToEdge,
 )
 from .source_span import SourceSpan
 

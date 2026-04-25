@@ -1,7 +1,6 @@
 """Text utilities for embedding document construction and docstring handling."""
 import re
 import textwrap
-from typing import Optional
 
 from knowstack.models.nodes import BaseNode
 
@@ -13,7 +12,7 @@ def truncate(text: str, max_chars: int = 512, suffix: str = "…") -> str:
     return text[: max_chars - len(suffix)] + suffix
 
 
-def clean_docstring(raw: Optional[str]) -> Optional[str]:
+def clean_docstring(raw: str | None) -> str | None:
     """Dedent, strip, and normalize a raw docstring."""
     if not raw:
         return None

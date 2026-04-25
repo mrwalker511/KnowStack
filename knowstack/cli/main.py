@@ -30,7 +30,7 @@ def main(
 
 
 # Register sub-commands
-from knowstack.cli import index, query, inspect, serve, workspace  # noqa: E402
+from knowstack.cli import index, inspect, query, serve, workspace  # noqa: E402
 
 app.add_typer(index.app, name="index")
 app.add_typer(query.app, name="query")

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
 
 from knowstack.config.schema import KnowStackConfig
 from knowstack.graph.store import GraphStore
@@ -17,8 +16,8 @@ from knowstack.incremental.change_detector import ChangeSet
 from knowstack.ingestion.embedder import Embedder
 from knowstack.ingestion.enricher import Enricher
 from knowstack.ingestion.normalizer import Normalizer
-from knowstack.ingestion.pipeline import IngestionReport
 from knowstack.ingestion.parsers import ConfigParser, PythonParser, TypeScriptParser
+from knowstack.ingestion.pipeline import IngestionReport
 from knowstack.ingestion.scanner import Scanner
 from knowstack.ingestion.writer import GraphWriter
 
@@ -97,6 +96,7 @@ class PartialPipeline:
         """Recompute PageRank from the full Kuzu graph and write scores back."""
         try:
             import networkx as nx
+
             from knowstack.ingestion.writer import _NODE_TABLE_MAP
 
             G: nx.DiGraph = nx.DiGraph()

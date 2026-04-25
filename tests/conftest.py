@@ -1,9 +1,8 @@
 """Shared pytest fixtures for KnowStack tests."""
 import shutil
+from pathlib import Path
 
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock
 
 from knowstack.config.schema import KnowStackConfig
 from knowstack.ingestion.pipeline import IngestionPipeline

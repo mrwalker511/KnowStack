@@ -56,7 +56,7 @@ class EntityExtractor:
         matched_fqns: list[str] = []
         for candidate in candidates[:5]:  # Cap to avoid O(n²) on long questions
             # Try exact name match first
-            exact = [fqn for name, fqn in zip(self._all_names, self._all_fqns)
+            exact = [fqn for name, fqn in zip(self._all_names, self._all_fqns, strict=False)
                      if name == candidate]
             if exact:
                 matched_fqns.extend(exact[:2])

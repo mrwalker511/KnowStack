@@ -8,20 +8,29 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
 
 import tree_sitter_python as tspython
-from tree_sitter import Language as TSLanguage, Node, Parser
+from tree_sitter import Language as TSLanguage
+from tree_sitter import Node, Parser
 
 from knowstack.ingestion.scanner import FileRecord
 from knowstack.models.edges import (
-    CallsEdge, ContainsEdge, ExposesEndpointEdge, ImportsEdge,
-    InheritsEdge, TestedByEdge, WritesToEdge, make_edge_id,
+    CallsEdge,
+    ContainsEdge,
+    ExposesEndpointEdge,
+    ImportsEdge,
+    make_edge_id,
 )
 from knowstack.models.enums import EdgeType, Language, NodeType
 from knowstack.models.nodes import (
-    ApiEndpointNode, ClassNode, DbModelNode, FileNode, FunctionNode,
-    MethodNode, TestNode, make_node_id,
+    ApiEndpointNode,
+    ClassNode,
+    DbModelNode,
+    FileNode,
+    FunctionNode,
+    MethodNode,
+    TestNode,
+    make_node_id,
 )
 from knowstack.models.source_span import SourceSpan
 from knowstack.utils.text import clean_docstring
@@ -262,7 +271,7 @@ class _ParseContext:
 
     def _visit_decorated(self, node: Node, inside_class: bool = False) -> None:
         decorators: list[str] = []
-        body_node: Optional[Node] = None
+        body_node: Node | None = None
         for child in node.children:
             if child.type == "decorator":
                 decorators.append(self._text(child).lstrip("@"))
@@ -389,11 +398,11 @@ class _ParseContext:
                         params.append(self._text(name_n))
         return params
 
-    def _extract_return_type(self, fn_node: Node) -> Optional[str]:
+    def _extract_return_type(self, fn_node: Node) -> str | None:
         rt = fn_node.child_by_field_name("return_type")
         return self._text(rt).lstrip("->").strip() if rt else None
 
-    def _extract_docstring(self, body: Optional[Node]) -> Optional[str]:
+    def _extract_docstring(self, body: Node | None) -> str | None:
         if not body:
             return None
         for child in body.children:
@@ -401,7 +410,7 @@ class _ParseContext:
                 for sub in child.children:
                     if sub.type == "string":
                         raw = self._text(sub)
-                        return raw.strip("\"'").strip('"""').strip("'''").strip()
+                        return raw.strip("\"'").strip()
         return None
 
     def _extract_class_variables(self, class_node: Node) -> list[str]:
@@ -420,7 +429,7 @@ class _ParseContext:
         return fields
 
     def _build_signature(
-        self, name: str, params: list[str], return_type: Optional[str], is_async: bool
+        self, name: str, params: list[str], return_type: str | None, is_async: bool
     ) -> str:
         prefix = "async def " if is_async else "def "
         rt = f" -> {return_type}" if return_type else ""
