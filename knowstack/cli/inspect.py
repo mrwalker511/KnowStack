@@ -8,6 +8,7 @@ from rich.tree import Tree
 
 from knowstack.config.loader import load_config
 from knowstack.retrieval.query_engine import QueryEngine
+from knowstack.retrieval.ranker import RankedNode
 
 app = typer.Typer(help="Inspect nodes, edges, and paths in the knowledge graph.")
 console = Console()
@@ -103,16 +104,16 @@ def inspect_stats(
     store.close()
 
 
-def _print_node_panel(node: object) -> None:
+def _print_node_panel(node: RankedNode) -> None:
     lines = [
-        f"[bold]FQN:[/bold]      {node.fqn}",  # type: ignore[attr-defined]
+        f"[bold]FQN:[/bold]      {node.fqn}",
         f"[bold]Type:[/bold]     {node.node_type}",
         f"[bold]File:[/bold]     {node.file_path}:{node.start_line}",
         f"[bold]Language:[/bold] {node.language}",
     ]
-    if node.signature:  # type: ignore[attr-defined]
+    if node.signature:
         lines.append(f"[bold]Signature:[/bold] [dim]{node.signature}[/dim]")
-    if node.docstring:  # type: ignore[attr-defined]
+    if node.docstring:
         lines.append(f"[bold]Doc:[/bold]      [italic]{node.docstring[:200]}[/italic]")
     lines.append(f"[bold]Score:[/bold]    {node.importance_score:.4f}")
     console.print(Panel("\n".join(lines), title=f"[cyan]{node.name}[/cyan]"))

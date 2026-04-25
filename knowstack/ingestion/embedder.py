@@ -137,7 +137,7 @@ class Embedder:
             ids=ids,
             embeddings=embeddings.tolist(),
             documents=docs,
-            metadatas=metas,
+            metadatas=metas,  # type: ignore[arg-type]
         )
         return len(ids)
 
@@ -161,8 +161,8 @@ class Embedder:
         hits: list[dict[str, Any]] = []
         if result["ids"]:
             for idx, nid in enumerate(result["ids"][0]):
-                meta = result["metadatas"][0][idx]
-                dist = result["distances"][0][idx]
+                meta = result["metadatas"][0][idx]  # type: ignore[index]
+                dist = result["distances"][0][idx]  # type: ignore[index]
                 hits.append({
                     "node_id": nid,
                     "fqn": meta.get("fqn"),
@@ -171,7 +171,7 @@ class Embedder:
                     "language": meta.get("language"),
                     "importance_score": meta.get("importance_score", 0.0),
                     "semantic_score": 1.0 - dist,  # cosine distance → similarity
-                    "document": result["documents"][0][idx],
+                    "document": result["documents"][0][idx],  # type: ignore[index]
                 })
         return hits
 

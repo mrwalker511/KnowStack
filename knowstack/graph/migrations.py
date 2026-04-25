@@ -7,6 +7,7 @@ NOT EXISTS), so most additive changes need no explicit migration.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from .schema import SCHEMA_VERSION
 from .store import GraphStore
@@ -30,7 +31,7 @@ def _migrate_v2(store: GraphStore) -> None:
 
 
 # Maps from_version -> migration callable
-MIGRATIONS: dict[int, object] = {
+MIGRATIONS: dict[int, Callable[[GraphStore], None]] = {
     2: _migrate_v2,
 }
 
@@ -54,5 +55,5 @@ def migrate(store: GraphStore) -> None:
             log.debug("No migration for version %d — skipping", version)
         else:
             log.info("Applying schema migration to version %d", version)
-            fn(store)  # type: ignore[call-arg]
+            fn(store)
     store._set_meta("schema_version", str(SCHEMA_VERSION))

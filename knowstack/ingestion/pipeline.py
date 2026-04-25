@@ -12,9 +12,10 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import networkx as nx
-from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TaskProgressColumn, TextColumn
 
 from knowstack.config.schema import KnowStackConfig
 from knowstack.graph.store import GraphStore
@@ -166,7 +167,7 @@ class IngestionPipeline:
             except Exception as exc:
                 log.warning("Parser crashed on %s: %s", record.rel_path, exc)
             if hasattr(progress, "advance") and task is not None:
-                progress.advance(task)  # type: ignore[union-attr]
+                progress.advance(task)
         return results
 
     def _find_parser(self, record: FileRecord) -> BaseParser | None:
@@ -193,7 +194,7 @@ class IngestionPipeline:
             # Write centrality back to each node table
             # Group by node_type for batch updates
             from collections import defaultdict
-            by_table: dict[str, list[dict]] = defaultdict(list)
+            by_table: dict[str, list[dict[str, Any]]] = defaultdict(list)
             from knowstack.ingestion.writer import _NODE_TABLE_MAP
             for node_id, score in pr.items():
                 node = graph.nodes.get(node_id)
@@ -222,12 +223,12 @@ class IngestionPipeline:
 
 class _NullProgress:
     """No-op progress sink used in non-interactive runs."""
-    def add_task(self, *a: object, **kw: object) -> None: return None
+    def add_task(self, *a: object, **kw: object) -> TaskID: return TaskID(0)
     def advance(self, *a: object) -> None: pass
     def update(self, *a: object, **kw: object) -> None: pass
 
 
-def _maybe_progress(enabled: bool):
+def _maybe_progress(enabled: bool) -> Progress | _NullProgressContext:
     if enabled:
         return Progress(
             SpinnerColumn(),

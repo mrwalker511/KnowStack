@@ -127,6 +127,7 @@ class _ParseContext:
 
         docstring = self._extract_docstring(node.child_by_field_name("body"))
 
+        cls_node: DbModelNode | ClassNode
         if is_orm:
             cls_node = DbModelNode(
                 node_id=make_node_id(self._rec.rel_path, fqn),
@@ -186,6 +187,7 @@ class _ParseContext:
         dec_names = decorators or []
 
         is_test = name.startswith("test_") or "test" in (d.lower() for d in dec_names)
+        fn_node: MethodNode | TestNode | FunctionNode
         is_endpoint, http_method, path_pattern, framework = self._detect_endpoint(dec_names)
 
         if inside_class and self._class_stack:

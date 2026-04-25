@@ -128,12 +128,12 @@ class GraphStore:
         """Execute a Cypher query and return results as a list of dicts."""
         result = self._conn.execute(query, params or {})
         rows: list[dict[str, Any]] = []
-        while result.has_next():
-            row = result.get_next()
-            # Kuzu returns rows as lists; zip with column names
-            if not rows:
-                cols = result.get_column_names()
-            rows.append(dict(zip(cols, row, strict=False)))  # type: ignore[possibly-undefined]
+        cols: list[str] = []
+        while result.has_next():  # type: ignore[union-attr]
+            row = result.get_next()  # type: ignore[union-attr]
+            if not cols:
+                cols = result.get_column_names()  # type: ignore[union-attr]
+            rows.append(dict(zip(cols, row, strict=False)))
         return rows
 
     def node_count(self, table: str | None = None) -> int:
@@ -174,7 +174,8 @@ class GraphStore:
         if not raw:
             return []
         try:
-            return json.loads(raw)
+            result: list[str] = json.loads(raw)
+            return result
         except Exception:
             return []
 

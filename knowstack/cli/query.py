@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.table import Table
 
 from knowstack.config.loader import load_config
-from knowstack.retrieval.query_engine import QueryEngine
+from knowstack.retrieval.query_engine import QueryEngine, QueryResult
 from knowstack.utils.logging import setup_logging
 
 app = typer.Typer(help="Query the knowledge graph.")
@@ -69,7 +69,7 @@ def query(
             _print_table(result)
 
 
-def _dispatch(engine: QueryEngine, q: str, mode: str, top_k: int):
+def _dispatch(engine: QueryEngine, q: str, mode: str, top_k: int) -> QueryResult:
     if mode == "dsl" or (mode == "auto" and _looks_like_dsl(q)):
         return engine.query_dsl(q)
     elif mode == "semantic":

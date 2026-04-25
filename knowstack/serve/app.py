@@ -82,7 +82,7 @@ def create_app(config: KnowStackConfig) -> FastAPI:
         return engine["q"]
 
     def _result(raw: Any, include_context: bool) -> dict[str, Any]:
-        data = raw.as_dict()
+        data: dict[str, Any] = raw.as_dict()
         if include_context:
             data["context"] = raw.context
         if raw.error:

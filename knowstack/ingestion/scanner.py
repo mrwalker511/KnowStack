@@ -9,6 +9,7 @@ from __future__ import annotations
 import fnmatch
 import logging
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -85,7 +86,7 @@ class Scanner:
         log.info("Scanner found %d files in %s", len(records), self._root)
         return records
 
-    def _walk(self):
+    def _walk(self) -> Iterator[Path]:
         """Yield all file paths that pass all filters."""
         for dirpath_str, dirnames, filenames in os.walk(self._root):
             dirpath = Path(dirpath_str)
