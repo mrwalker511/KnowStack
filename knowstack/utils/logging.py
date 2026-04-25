@@ -12,11 +12,11 @@ def setup_logging(level: str = "INFO") -> None:
     if _configured:
         return
     logging.basicConfig(
-        level=getattr(logging, level.upper(), logging.INFO),
+        level=int(getattr(logging, level.upper(), logging.INFO)),
         format="%(message)s",
         datefmt="[%X]",
         handlers=[RichHandler(rich_tracebacks=True, show_path=False)],
-        stream=sys.stderr,
+        stream=sys.stderr,  # type: ignore[call-overload]
     )
     _configured = True
 

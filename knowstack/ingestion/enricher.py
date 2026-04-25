@@ -70,7 +70,7 @@ class Enricher:
 
         # Preliminary importance (centrality added post-ingestion)
         freq = updates.get("change_frequency", node.change_frequency)
-        updates["importance_score"] = node.centrality_score * (1 + float(freq))
+        updates["importance_score"] = node.centrality_score * (1 + float(freq))  # type: ignore[arg-type]
 
         if updates:
             return node.model_copy(update=updates)
@@ -92,9 +92,10 @@ class Enricher:
 
             for commit in commits:
                 for file_path in commit.stats.files:
-                    file_counts[file_path] = file_counts.get(file_path, 0) + 1
-                    if file_path not in last_commit:
-                        last_commit[file_path] = commit.hexsha[:8]
+                    fp = str(file_path)
+                    file_counts[fp] = file_counts.get(fp, 0) + 1
+                    if fp not in last_commit:
+                        last_commit[fp] = commit.hexsha[:8]
 
             self._file_change_freq = {fp: count / total for fp, count in file_counts.items()}
             self._file_last_commit = last_commit

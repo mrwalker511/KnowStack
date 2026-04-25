@@ -9,6 +9,7 @@ Otherwise the rule-based builder constructs a best-effort DSL query.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from knowstack.config.schema import KnowStackConfig
 from knowstack.graph.store import GraphStore
@@ -134,8 +135,8 @@ class NLQueryBuilder:
             timeout=10,
         )
         resp.raise_for_status()
-        data = resp.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        data: dict[str, Any] = resp.json()
+        content: str = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         return content.strip()
 
     def _ollama_build(self, question: str) -> str:
@@ -155,6 +156,6 @@ class NLQueryBuilder:
             timeout=30,
         )
         resp.raise_for_status()
-        data = resp.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        data: dict[str, Any] = resp.json()
+        content: str = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         return content.strip()

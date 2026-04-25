@@ -44,7 +44,7 @@ def index(
         knowstack index ~/projects/myapp --db /tmp/myapp.kuzu
     """
     setup_logging("DEBUG" if verbose else "INFO")
-    overrides = {}
+    overrides: dict[str, object] = {}
     if db_path:
         overrides["db_path"] = str(db_path)
     overrides["parse_workers"] = workers

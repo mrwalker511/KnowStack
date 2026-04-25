@@ -1,5 +1,11 @@
 """CLI: knowstack workspace — manage multi-repo workspaces."""
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from knowstack.workspace.config import WorkspaceConfig
 
 import typer
 from rich.console import Console
@@ -11,7 +17,7 @@ app = typer.Typer(help="Manage multi-repo workspaces.")
 console = Console()
 
 
-def _load_ws(workspace_path: Path):
+def _load_ws(workspace_path: Path) -> WorkspaceConfig:
     from knowstack.workspace.config import WorkspaceConfig
     return WorkspaceConfig.load(workspace_path)
 

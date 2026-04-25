@@ -189,6 +189,7 @@ class _TSParseContext:
         params = self._extract_params(node)
 
         is_test = name in _JEST_TEST_FUNCS or name.startswith("test")
+        fn_node: TestNode | FunctionNode
 
         if is_test:
             fn_node = TestNode(
