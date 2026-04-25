@@ -152,18 +152,18 @@ def workspace_query(
 
     with QueryEngine(config) as engine:
         if mode == "nl":
-            result = engine.query_nl(query)
+            result = engine.query_nl(query, repo_id=repo_id)
         elif mode == "semantic":
-            result = engine.query_semantic(query)
+            result = engine.query_semantic(query, repo_id=repo_id)
         elif mode == "hybrid":
-            result = engine.query_hybrid(query)
+            result = engine.query_hybrid(query, repo_id=repo_id)
         else:
             # Auto: try DSL first, fall back to semantic
             dsl_keywords = ("FIND", "DEPENDENTS", "IMPACT", "PATH")
             if query.strip().upper().split()[0] in dsl_keywords:
                 result = engine.query_dsl(query, repo_id=repo_id)
             else:
-                result = engine.query_semantic(query)
+                result = engine.query_semantic(query, repo_id=repo_id)
 
         if context:
             console.print(result.context)

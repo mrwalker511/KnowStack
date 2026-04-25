@@ -20,8 +20,11 @@ class VectorRetriever:
         top_k: int = 20,
         node_type_filter: str | None = None,
         language_filter: str | None = None,
+        repo_id: str | None = None,
     ) -> list[RankedNode]:
         where: dict[str, Any] = {}
+        if repo_id:
+            where["repo_id"] = repo_id
         if node_type_filter:
             where["node_type"] = node_type_filter
         if language_filter:

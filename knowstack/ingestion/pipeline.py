@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import logging
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import networkx as nx
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
 from knowstack.config.schema import KnowStackConfig
 from knowstack.graph.store import GraphStore
@@ -99,7 +98,7 @@ class IngestionPipeline:
             store.initialize_schema()
             repo_id = self._config.repo_id or str(self._config.repo_path)
             writer = GraphWriter(store, repo_id=repo_id)
-            counts = writer.write(graph)
+            writer.write(graph)
             report.nodes_written = graph.node_count
             report.edges_written = graph.edge_count
 
@@ -141,7 +140,8 @@ class IngestionPipeline:
         enricher = Enricher(self._config.repo_path)
         graph = enricher.enrich(graph)
 
-        writer = GraphWriter(store)
+        repo_id = self._config.repo_id or str(self._config.repo_path)
+        writer = GraphWriter(store, repo_id=repo_id)
         writer.write(graph)
         report.nodes_written = graph.node_count
         report.edges_written = graph.edge_count
@@ -240,6 +240,6 @@ def _maybe_progress(enabled: bool):
 
 
 class _NullProgressContext:
-    def __enter__(self) -> "_NullProgress":
+    def __enter__(self) -> _NullProgress:
         return _NullProgress()
     def __exit__(self, *_: object) -> None: pass
