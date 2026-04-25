@@ -99,14 +99,20 @@ class GraphRetriever:
         if not node_id:
             return []
 
-        cypher = """
-            MATCH (n {node_id: $id})<-[*1..$depth]-(dep)
+        params: dict[str, Any] = {"id": node_id, "depth": depth, "limit": lim}
+        repo_filter = ""
+        if repo_id:
+            repo_filter = " AND dep.repo_id = $rid"
+            params["rid"] = repo_id
+        cypher = f"""
+            MATCH (n {{node_id: $id}})<-[*1..$depth]-(dep)
+            WHERE dep.node_id <> $id{repo_filter}
             RETURN DISTINCT dep
             ORDER BY dep.importance_score DESC
             LIMIT $limit
         """
         try:
-            rows = self._store.cypher(cypher, {"id": node_id, "depth": depth, "limit": lim})
+            rows = self._store.cypher(cypher, params)
             return [RankedNode.from_graph_row(self._flatten_node_row(r)) for r in rows]
         except Exception as exc:
             log.warning("DEPENDENTS query failed: %s", exc)

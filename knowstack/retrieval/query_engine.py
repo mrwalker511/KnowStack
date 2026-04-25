@@ -95,11 +95,11 @@ class QueryEngine:
             log.error("DSL query error: %s", exc)
             return QueryResult(query=dsl, intent=QueryIntent.STRUCTURAL, error=str(exc))
 
-    def query_semantic(self, text: str, top_k: int | None = None) -> QueryResult:
+    def query_semantic(self, text: str, top_k: int | None = None, repo_id: str | None = None) -> QueryResult:
         """Semantic similarity search over embedded nodes."""
         k = top_k or self._config.default_top_k
         try:
-            nodes = self._vector.search(text, top_k=k)
+            nodes = self._vector.search(text, top_k=k, repo_id=repo_id)
             ranked = self._ranker.rank(nodes, query_terms=text.split())
             context = self._packer.pack(ranked, query=text)
             return QueryResult(query=text, intent=QueryIntent.SEMANTIC,
@@ -108,19 +108,19 @@ class QueryEngine:
             log.error("Semantic query error: %s", exc)
             return QueryResult(query=text, intent=QueryIntent.SEMANTIC, error=str(exc))
 
-    def query_hybrid(self, text: str, top_k: int | None = None) -> QueryResult:
+    def query_hybrid(self, text: str, top_k: int | None = None, repo_id: str | None = None) -> QueryResult:
         """Hybrid: graph structural + semantic vector fusion."""
         k = top_k or self._config.default_top_k
         graph_results: list[RankedNode] = []
         vec_results: list[RankedNode] = []
 
         try:
-            graph_results = self._graph.find(None, [], limit=k)
+            graph_results = self._graph.find(None, [], limit=k, repo_id=repo_id)
         except Exception as exc:
             log.warning("Hybrid query: graph retriever failed, continuing with vectors only: %s", exc)
 
         try:
-            vec_results = self._vector.search(text, top_k=k)
+            vec_results = self._vector.search(text, top_k=k, repo_id=repo_id)
         except Exception as exc:
             log.warning("Hybrid query: vector retriever failed, continuing with graph only: %s", exc)
 
@@ -159,19 +159,19 @@ class QueryEngine:
         except Exception as exc:
             return QueryResult(query=f"{src} -> {dst}", intent=QueryIntent.PATH, error=str(exc))
 
-    def query_nl(self, question: str) -> QueryResult:
+    def query_nl(self, question: str, repo_id: str | None = None) -> QueryResult:
         """Natural language question → auto-routed query (Phase 3: requires LLM config)."""
         try:
             from knowstack.nl.query_builder import NLQueryBuilder
             builder = NLQueryBuilder(self._config, self._store)
             intent, dsl = builder.build(question)
             if intent == QueryIntent.SEMANTIC or not dsl:
-                return self.query_semantic(question)
-            return self.query_dsl(dsl)
+                return self.query_semantic(question, repo_id=repo_id)
+            return self.query_dsl(dsl, repo_id=repo_id)
         except ImportError:
             # NL layer not yet available — fall back to semantic
             log.debug("NL layer not available, falling back to semantic search")
-            return self.query_semantic(question)
+            return self.query_semantic(question, repo_id=repo_id)
         except Exception as exc:
             return QueryResult(query=question, intent=QueryIntent.NL, error=str(exc))
 

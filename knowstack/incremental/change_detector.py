@@ -14,9 +14,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from knowstack.graph.store import GraphStore
+from knowstack.models.enums import Language
 from knowstack.utils.hashing import file_hash
 from knowstack.utils.language_detect import detect_language
-from knowstack.models.enums import Language
 
 log = logging.getLogger(__name__)
 
@@ -35,9 +35,10 @@ class ChangeSet:
 
 
 class ChangeDetector:
-    def __init__(self, repo_path: Path, store: GraphStore) -> None:
+    def __init__(self, repo_path: Path, store: GraphStore, repo_id: str | None = None) -> None:
         self._root = repo_path.resolve()
         self._store = store
+        self._repo_id = repo_id
 
     def detect(self) -> ChangeSet:
         """Compare indexed state against current filesystem."""
@@ -61,8 +62,11 @@ class ChangeDetector:
     def _load_indexed_hashes(self) -> dict[str, str]:
         """Load {rel_path: content_hash} from the graph store."""
         try:
+            where = " WHERE f.repo_id = $rid" if self._repo_id else ""
+            params: dict[str, str] = {"rid": self._repo_id} if self._repo_id else {}
             rows = self._store.cypher(
-                "MATCH (f:File) RETURN f.file_path AS path, f.content_hash AS hash"
+                f"MATCH (f:File){where} RETURN f.file_path AS path, f.content_hash AS hash",
+                params,
             )
             return {str(r["path"]): str(r["hash"]) for r in rows if r.get("path")}
         except Exception as exc:

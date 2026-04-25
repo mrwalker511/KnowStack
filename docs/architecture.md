@@ -107,7 +107,7 @@ batches of 64. Stores vectors + metadata in ChromaDB for filtered ANN search.
 
 - Embedded, SQLite-backed vector store
 - Single collection `"nodes"` with cosine distance metric
-- Metadata fields: `node_type`, `fqn`, `file_path`, `language`, `importance_score`
+- Metadata fields: `node_type`, `fqn`, `file_path`, `language`, `importance_score`, `repo_id`
 - Supports pre-filtering (e.g., `language = "python"`) before ANN search
 - Stored at `.knowstack/vectors/`
 
@@ -204,6 +204,50 @@ PartialPipeline:
   3. Run Stages 1-6 on changed files only
   4. Cross-file edge resolution still runs globally (changed files may affect others)
 ```
+
+## Multi-Repo Workspaces
+
+A workspace indexes multiple repositories into a **single shared Kuzu database and ChromaDB collection**. Every node and embedding carries a `repo_id` field that is used as a filter on every query path, guaranteeing per-repo isolation with no data leakage.
+
+### Workspace manifest (`workspace.toml`)
+
+```toml
+[workspace]
+db_path    = ".knowstack/workspace.kuzu"
+vector_db_path = ".knowstack/workspace-vectors"
+
+[[workspace.repos]]
+path = "../service-a"          # relative or absolute
+id   = "org/service-a"
+
+[[workspace.repos]]
+path = "/absolute/path/to/svc-b"
+id   = "org/service-b"
+```
+
+### CLI commands
+
+```bash
+knowstack workspace init                          # create workspace.toml
+knowstack workspace add /path/to/repo --id org/repo   # register a repo
+knowstack workspace index                         # index all repos
+knowstack workspace index org/repo-a              # index one repo
+knowstack workspace query "authenticate" --repo org/service-a --mode semantic
+knowstack workspace query "FIND function WHERE tag = auth" --repo org/service-a
+knowstack workspace list
+```
+
+### Isolation guarantee
+
+| Query path | repo_id threading |
+|---|---|
+| DSL (`FIND`, `DEPENDENTS`, `IMPACT`, `PATH`) | `WHERE n.repo_id = $rid` in every Cypher clause |
+| Semantic vector search | ChromaDB `where={"repo_id": ...}` pre-filter |
+| Hybrid (graph + vector) | Both paths scoped as above |
+| NL | Delegates to semantic or DSL, both scoped |
+| Incremental `ChangeDetector` | `WHERE f.repo_id = $rid` on hash load |
+
+Omitting `--repo` returns results from all registered repos (cross-repo search).
 
 ## Design decisions and tradeoffs
 

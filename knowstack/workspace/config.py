@@ -20,7 +20,6 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 WORKSPACE_FILE = "workspace.toml"
 
 
@@ -40,7 +39,7 @@ class WorkspaceConfig:
     # ── Persistence ───────────────────────────────────────────────────────────
 
     @classmethod
-    def load(cls, workspace_path: Path) -> "WorkspaceConfig":
+    def load(cls, workspace_path: Path) -> WorkspaceConfig:
         """Load from workspace_path/workspace.toml."""
         toml_path = workspace_path / WORKSPACE_FILE
         if not toml_path.exists():
@@ -52,7 +51,10 @@ class WorkspaceConfig:
         vec = workspace_path / ws.get("vector_db_path", ".knowstack/workspace-vectors")
         repos = [
             RepoEntry(
-                path=(workspace_path / r["path"]).resolve(),
+                path=(
+                    Path(r["path"]) if Path(r["path"]).is_absolute()
+                    else (workspace_path / r["path"])
+                ).resolve(),
                 id=r.get("id") or Path(r["path"]).name,
             )
             for r in ws.get("repos", [])
@@ -60,11 +62,18 @@ class WorkspaceConfig:
         return cls(workspace_path=workspace_path, db_path=db.resolve(),
                    vector_db_path=vec.resolve(), repos=repos)
 
+    def _path_for_toml(self, p: Path) -> str:
+        """Return a path string suitable for workspace.toml (relative if possible)."""
+        try:
+            return str(p.relative_to(self.workspace_path))
+        except ValueError:
+            return str(p)
+
     def save(self) -> None:
         """Write current state back to workspace.toml."""
         toml_path = self.workspace_path / WORKSPACE_FILE
         repos_toml = "\n".join(
-            f'\n[[workspace.repos]]\npath = "{r.path}"\nid = "{r.id}"'
+            f'\n[[workspace.repos]]\npath = "{self._path_for_toml(r.path)}"\nid = "{r.id}"'
             for r in self.repos
         )
         content = (
@@ -103,7 +112,7 @@ class WorkspaceConfig:
     # ── Factory ───────────────────────────────────────────────────────────────
 
     @classmethod
-    def init(cls, workspace_path: Path) -> "WorkspaceConfig":
+    def init(cls, workspace_path: Path) -> WorkspaceConfig:
         """Create a new empty workspace and write workspace.toml."""
         ws = cls(
             workspace_path=workspace_path,

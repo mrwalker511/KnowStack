@@ -63,7 +63,8 @@ class Embedder:
                 rows = store.cypher(
                     f"MATCH (n:{table}) RETURN n.node_id AS id, n.fqn AS fqn, "
                     f"n.name AS name, n.language AS lang, n.file_path AS file_path, "
-                    f"n.docstring AS doc, n.importance_score AS score{limit_clause}"
+                    f"n.docstring AS doc, n.importance_score AS score, "
+                    f"n.repo_id AS repo_id{limit_clause}"
                 )
             except Exception as exc:
                 log.warning("Failed to fetch %s nodes for embedding: %s", table, exc)
@@ -88,7 +89,8 @@ class Embedder:
                     f"MATCH (n:{table}) WHERE n.file_path IN $fps "
                     f"RETURN n.node_id AS id, n.fqn AS fqn, n.name AS name, "
                     f"n.language AS lang, n.file_path AS file_path, "
-                    f"n.docstring AS doc, n.importance_score AS score",
+                    f"n.docstring AS doc, n.importance_score AS score, "
+                    f"n.repo_id AS repo_id",
                     {"fps": fps},
                 )
             except Exception as exc:
@@ -124,6 +126,7 @@ class Embedder:
                 "file_path": str(row.get("file_path", "")),
                 "language": str(row.get("lang", "")),
                 "importance_score": float(row.get("score") or 0.0),
+                "repo_id": str(row.get("repo_id") or ""),
             })
 
         if not ids:
