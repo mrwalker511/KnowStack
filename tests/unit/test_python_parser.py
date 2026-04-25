@@ -1,5 +1,4 @@
 """Unit tests for the Python tree-sitter parser."""
-import pytest
 
 from knowstack.ingestion.parsers.python_parser import PythonParser
 from knowstack.models.enums import Language, NodeType
@@ -65,6 +64,7 @@ def test_parser_extracts_docstrings(auth_file_record):
 
 def test_parser_extracts_test_nodes():
     from pathlib import Path
+
     from knowstack.ingestion.scanner import FileRecord
     from knowstack.utils.hashing import content_hash
 

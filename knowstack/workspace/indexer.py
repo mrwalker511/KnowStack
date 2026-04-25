@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from knowstack.config.schema import KnowStackConfig
 from knowstack.graph.migrations import migrate

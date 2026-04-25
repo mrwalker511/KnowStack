@@ -1,9 +1,9 @@
 """Integration test: full ingestion pipeline on the Python fixture."""
-import pytest
-from pathlib import Path
 
-from knowstack.ingestion.pipeline import IngestionPipeline
+import pytest
+
 from knowstack.graph.store import GraphStore
+from knowstack.ingestion.pipeline import IngestionPipeline
 
 
 @pytest.mark.integration

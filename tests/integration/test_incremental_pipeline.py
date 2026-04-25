@@ -1,12 +1,10 @@
 """Integration tests: incremental change detection and partial re-index."""
-from pathlib import Path
 
 import pytest
 
 from knowstack.graph.store import GraphStore
 from knowstack.incremental.change_detector import ChangeDetector, ChangeSet
 from knowstack.incremental.partial_pipeline import PartialPipeline
-
 
 # ---------------------------------------------------------------------------
 # Change detection
@@ -92,13 +90,7 @@ def test_modified_file_updates_docstring(indexed_repo):
     repo_dir, config = indexed_repo
     target = repo_dir / "auth.py"
     original = target.read_text()
-    # Append a unique docstring to the first function
-    modified = original.replace(
-        'def authenticate(',
-        'def authenticate(  # pragma: no cover\n',
-        1,
-    )
-    # Simpler: just append a new standalone function with a known unique docstring
+    # Append a new standalone function with a known unique docstring
     new_content = original + '\ndef updated_marker():\n    """UNIQUE_DOCSTRING_9z8y7x."""\n    pass\n'
     target.write_text(new_content)
     cs = ChangeSet(modified=[target])

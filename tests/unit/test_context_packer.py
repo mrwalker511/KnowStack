@@ -1,5 +1,4 @@
 """Unit tests for the ContextPacker."""
-import pytest
 
 from knowstack.retrieval.context_packer import ContextPacker
 from knowstack.retrieval.ranker import RankedNode

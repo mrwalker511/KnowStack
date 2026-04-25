@@ -9,7 +9,6 @@ This ensures stable identity across re-indexing runs.
 from __future__ import annotations
 
 import hashlib
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,17 +33,17 @@ class BaseNode(BaseModel):
     fqn: str  # Fully-qualified name: "src.auth.service.AuthService.authenticate"
     language: Language
     repo_id: str = ""  # Repository identifier — set by the ingestion pipeline
-    source_span: Optional[SourceSpan] = None
-    docstring: Optional[str] = None  # First docstring/comment, ≤512 chars
+    source_span: SourceSpan | None = None
+    docstring: str | None = None  # First docstring/comment, ≤512 chars
     tags: list[str] = Field(default_factory=list)  # auto-detected + user-defined
 
     # Enrichment — populated by Enricher and post-processing steps
     change_frequency: float = 0.0  # Commit touches / total commits (0–1)
-    last_modified_commit: Optional[str] = None
+    last_modified_commit: str | None = None
     centrality_score: float = 0.0  # PageRank on CALLS+IMPORTS subgraph
     importance_score: float = 0.0  # centrality * (1 + change_frequency)
 
-    def with_enrichment(self, **kwargs: object) -> "BaseNode":
+    def with_enrichment(self, **kwargs: object) -> BaseNode:
         """Return a copy with enrichment fields applied (frozen-safe update)."""
         return self.model_copy(update=kwargs)
 
@@ -76,7 +75,7 @@ class FunctionNode(BaseNode):
     is_generator: bool = False
     decorator_names: list[str] = Field(default_factory=list)
     parameter_names: list[str] = Field(default_factory=list)
-    return_type: Optional[str] = None
+    return_type: str | None = None
 
 
 class MethodNode(FunctionNode):
@@ -106,7 +105,7 @@ class ApiEndpointNode(BaseNode):
 
 class DbModelNode(BaseNode):
     node_type: NodeType = NodeType.DB_MODEL
-    table_name: Optional[str] = None
+    table_name: str | None = None
     orm_framework: str = ""  # "sqlalchemy", "django", "prisma", "typeorm"
     fields: list[str] = Field(default_factory=list)
 

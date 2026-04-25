@@ -1,5 +1,4 @@
 """Unit tests for the Normalizer."""
-import pytest
 
 from knowstack.ingestion.normalizer import Normalizer
 from knowstack.ingestion.parsers.python_parser import PythonParser

@@ -7,23 +7,30 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
 
 import tree_sitter_typescript as tsts
-from tree_sitter import Language as TSLanguage, Node, Parser
+from tree_sitter import Language as TSLanguage
+from tree_sitter import Node, Parser
 
 from knowstack.ingestion.scanner import FileRecord
 from knowstack.models.edges import (
-    CallsEdge, ContainsEdge, ExposesEndpointEdge, ImportsEdge,
-    InheritsEdge, ImplementsEdge, make_edge_id,
+    ContainsEdge,
+    ImplementsEdge,
+    ImportsEdge,
+    make_edge_id,
 )
 from knowstack.models.enums import EdgeType, Language, NodeType
 from knowstack.models.nodes import (
-    ApiEndpointNode, ClassNode, FileNode, FunctionNode,
-    InterfaceNode, MethodNode, TestNode, TypeAliasNode, make_node_id,
+    ClassNode,
+    FileNode,
+    FunctionNode,
+    InterfaceNode,
+    MethodNode,
+    TestNode,
+    TypeAliasNode,
+    make_node_id,
 )
 from knowstack.models.source_span import SourceSpan
-from knowstack.utils.text import clean_docstring
 
 from .base import BaseParser, ParseResult
 
@@ -286,7 +293,7 @@ class _TSParseContext:
         parts = [self._module_fqn] + self._class_stack + [name]
         return ".".join(parts)
 
-    def _text(self, node: Optional[Node]) -> str:
+    def _text(self, node: Node | None) -> str:
         if not node or not node.text:
             return ""
         return node.text.decode("utf-8", errors="replace")

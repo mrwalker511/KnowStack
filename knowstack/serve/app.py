@@ -8,17 +8,16 @@ Run:     knowstack serve [REPO_PATH]
 """
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from knowstack import __version__
-from knowstack.config.loader import load_config
 from knowstack.config.schema import KnowStackConfig
 from knowstack.retrieval.query_engine import QueryEngine
-
 
 # ── Request / Response models ─────────────────────────────────────────────────
 
@@ -29,13 +28,13 @@ class DslRequest(BaseModel):
 
 class SemanticRequest(BaseModel):
     query: str
-    top_k: Optional[int] = None
+    top_k: int | None = None
     context: bool = True
 
 
 class HybridRequest(BaseModel):
     query: str
-    top_k: Optional[int] = None
+    top_k: int | None = None
     context: bool = True
 
 

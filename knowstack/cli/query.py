@@ -1,13 +1,12 @@
 """CLI: knowstack query — query the knowledge graph."""
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from knowstack.config.loader import load_config
-from knowstack.retrieval.query_engine import QueryEngine, QueryIntent
+from knowstack.retrieval.query_engine import QueryEngine
 from knowstack.utils.logging import setup_logging
 
 app = typer.Typer(help="Query the knowledge graph.")
@@ -16,7 +15,7 @@ console = Console()
 
 @app.callback(invoke_without_command=True)
 def query(
-    query_str: Optional[str] = typer.Argument(
+    query_str: str | None = typer.Argument(
         None, help="DSL query or natural-language question."
     ),
     mode: str = typer.Option(

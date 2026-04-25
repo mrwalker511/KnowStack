@@ -1,13 +1,9 @@
 """Unit tests for PartialPipeline."""
-from pathlib import Path
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from knowstack.graph.store import GraphStore
 from knowstack.incremental.change_detector import ChangeSet
 from knowstack.incremental.partial_pipeline import PartialPipeline
-
 
 # ---------------------------------------------------------------------------
 # Helpers

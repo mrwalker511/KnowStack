@@ -50,6 +50,13 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+# Typer CLIs require function calls as default argument values (B008)
+# and raise inside except for early exit (B904) — both are intentional patterns
+"knowstack/cli/*.py" = ["B008", "B904"]
+# pytest.raises(Exception) is acceptable when testing frozen model mutation
+"tests/unit/test_models.py" = ["B017"]
+
 [tool.mypy]
 strict = true
 python_version = "3.11"

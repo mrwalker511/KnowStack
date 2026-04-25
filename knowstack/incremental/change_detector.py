@@ -9,6 +9,7 @@ Optionally uses git diff for speed (avoids re-hashing untracked files).
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -82,8 +83,6 @@ class ChangeDetector:
             if detect_language(path) == Language.UNKNOWN:
                 continue
             rel = str(path.relative_to(self._root))
-            try:
+            with contextlib.suppress(OSError):
                 hashes[rel] = file_hash(path)
-            except OSError:
-                pass
         return hashes

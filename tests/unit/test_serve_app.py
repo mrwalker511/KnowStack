@@ -1,6 +1,6 @@
 """Unit tests for the FastAPI serve application."""
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -38,9 +38,8 @@ def client(mock_result):
     app = create_app(config)
 
     # Bypass lifespan by injecting mock engine directly into the closure dict
-    with patch("knowstack.serve.app.QueryEngine", return_value=mock_engine):
-        with TestClient(app) as c:
-            yield c
+    with patch("knowstack.serve.app.QueryEngine", return_value=mock_engine), TestClient(app) as c:
+        yield c
 
 
 def test_health(client):

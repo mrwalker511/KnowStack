@@ -108,10 +108,7 @@ class Scanner:
             # Also check basename against simple patterns
             if fnmatch.fnmatch(path.name, pattern):
                 return True
-        for pattern in self._gitignore_patterns:
-            if fnmatch.fnmatch(rel, pattern):
-                return True
-        return False
+        return any(fnmatch.fnmatch(rel, pattern) for pattern in self._gitignore_patterns)
 
     def _load_gitignore_patterns(self) -> list[str]:
         patterns: list[str] = []
