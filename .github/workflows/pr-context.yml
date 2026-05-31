@@ -49,13 +49,15 @@ jobs:
             knowstack-${{ runner.os }}-
 
       - name: Install KnowStack
-        run: pip install -v -e . 2>&1 | tail -200
+        run: pip install -e .
 
       - name: Show environment
         run: |
           python --version
           pip --version
-          pip list 2>&1 | head -100
+          echo "--- installed packages ---"
+          pip list || true
+          echo "--- resources ---"
           free -h || true
           df -h . || true
 
@@ -78,11 +80,12 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_NUMBER: ${{ github.event.number }}
+        # Disable errexit/pipefail so a non-zero exit from the CLI (e.g.
+        # exit 2 = empty diff) is handled by our explicit `if`, not by
+        # the runner's default `set -eo pipefail`.
+        shell: bash {0}
         run: |
-          set -o pipefail
           git diff "$BASE_SHA"..HEAD > /tmp/pr.diff
-          # Exit code is ignored — exit 2 (empty diff) should surface as a
-          # comment, not a CI failure.
           knowstack pr-context \
             --diff /tmp/pr.diff \
             --repo . \
@@ -90,8 +93,13 @@ jobs:
             --model "${MODEL}" \
             --pr "${PR_NUMBER}" \
             --title "${PR_TITLE}" \
-            --json > /tmp/bundle.json \
-            || echo '{"empty": true}' > /tmp/bundle.json
+            --json > /tmp/bundle.json
+          rc=$?
+          echo "pr-context exit=$rc"
+          if [ "$rc" -ne 0 ]; then
+            echo '{"empty": true}' > /tmp/bundle.json
+          fi
+          exit 0
 
       - name: Render comment body
         run: |
