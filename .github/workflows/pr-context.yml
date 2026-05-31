@@ -1,0 +1,100 @@
+name: PR Context
+
+# Runs the KnowStack PR context minimizer on every pull request and posts a
+# token-budgeted, LLM-ready review-context bundle as a PR comment. The comment
+# is upserted (looked up by a hidden marker, then PATCH-ed or POST-ed) so
+# successive pushes update the same comment instead of stacking new ones.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TOKEN_BUDGET: "4000"
+  MODEL: "claude-sonnet-4-6"
+
+jobs:
+  pr-context:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          # full history so `git diff <base>..HEAD` works
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cache KnowStack index and HF model
+        uses: actions/cache@v4
+        with:
+          path: |
+            .knowstack
+            ~/.cache/huggingface
+          key: knowstack-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
+          restore-keys: |
+            knowstack-${{ runner.os }}-
+
+      - name: Install KnowStack
+        run: pip install -e .
+
+      - name: Index (incremental if cache hit, full otherwise)
+        run: knowstack index . --incremental
+
+      - name: Build PR context bundle
+        id: bundle
+        run: |
+          set -o pipefail
+          git diff ${{ github.event.pull_request.base.sha }}..HEAD > /tmp/pr.diff
+          # Capture exit code without failing the step — exit 2 = empty diff,
+          # which we still want to surface as a comment, not a CI failure.
+          knowstack pr-context \
+            --diff /tmp/pr.diff \
+            --repo . \
+            --budget "${TOKEN_BUDGET}" \
+            --model "${MODEL}" \
+            --pr "${{ github.event.number }}" \
+            --title "${{ github.event.pull_request.title }}" \
+            --json > /tmp/bundle.json \
+            || echo '{"empty": true}' > /tmp/bundle.json
+
+      - name: Render comment body
+        run: |
+          python .github/actions/pr-context/format_comment.py \
+            /tmp/bundle.json > /tmp/comment.md
+
+      - name: Upsert PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/comment.md', 'utf8');
+            const marker = '<!-- knowstack-pr-context -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.startsWith(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+              core.info(`Updated comment ${existing.id}`);
+            } else {
+              const { data } = await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+              core.info(`Created comment ${data.id}`);
+            }
