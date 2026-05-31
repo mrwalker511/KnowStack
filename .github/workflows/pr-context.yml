@@ -16,6 +16,10 @@ permissions:
 env:
   TOKEN_BUDGET: "4000"
   MODEL: "claude-sonnet-4-6"
+  # Surface tracebacks immediately and disable Python output buffering so
+  # whatever crashes mid-step shows up in the job log instead of being lost.
+  PYTHONUNBUFFERED: "1"
+  PYTHONFAULTHANDLER: "1"
 
 jobs:
   pr-context:
@@ -45,7 +49,15 @@ jobs:
             knowstack-${{ runner.os }}-
 
       - name: Install KnowStack
-        run: pip install -e .
+        run: pip install -v -e . 2>&1 | tail -200
+
+      - name: Show environment
+        run: |
+          python --version
+          pip --version
+          pip list 2>&1 | head -100
+          free -h || true
+          df -h . || true
 
       - name: Index (full on cold cache, incremental otherwise)
         run: |
@@ -53,9 +65,9 @@ jobs:
           # index on cold cache (or if the incremental run trips for any
           # other reason — e.g. a schema-version bump).
           if [ -d .knowstack ] && [ -n "$(ls -A .knowstack 2>/dev/null)" ]; then
-            knowstack index . --incremental || knowstack index .
+            knowstack index . --incremental --verbose || knowstack index . --verbose
           else
-            knowstack index .
+            knowstack index . --verbose
           fi
 
       - name: Build PR context bundle
