@@ -113,6 +113,22 @@ See [docs/architecture.md](docs/architecture.md) for a detailed description of e
 | [docs/adding_a_language.md](docs/adding_a_language.md) | Step-by-step guide to adding a new language |
 | [docs/testing.md](docs/testing.md) | Running and writing tests |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common issues and solutions |
+| [docs/github_actions.md](docs/github_actions.md) | Auto-post a PR review context bundle on every pull request |
+
+## Use in CI: PR review context comments
+
+KnowStack ships with a GitHub Action that runs `knowstack pr-context` on every
+pull request and posts a token-budgeted, LLM-ready context bundle as a PR
+comment — just the touched symbols plus their immediate callers, callees,
+tests, and related configs, capped at a configurable budget (default 4,000
+tokens). The comment is upserted on every push, so reviewers (and any
+downstream LLM review bot) always see the latest bundle without comment
+spam.
+
+To enable it on your repo, copy `.github/workflows/pr-context.yml` and
+`.github/actions/pr-context/format_comment.py`. Full setup — including
+caching, tuning the budget/model, and a local dry-run — is documented in
+[docs/github_actions.md](docs/github_actions.md).
 
 ## Configuration
 

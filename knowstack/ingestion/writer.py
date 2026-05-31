@@ -147,14 +147,18 @@ class GraphWriter:
         }
 
         span = node.source_span
+        # File/Directory/ConfigFile nodes have no start_line/end_line columns
+        # in the schema; only set them for symbol-level nodes even when the
+        # parser happened to attach a source span.
+        is_fileish = isinstance(node, (FileNode, DirectoryNode, ConfigFileNode))
         if span:
             row["file_path"] = span.file_path
-            row["start_line"] = span.start_line
-            row["end_line"] = span.end_line
+            if not is_fileish:
+                row["start_line"] = span.start_line
+                row["end_line"] = span.end_line
         else:
             row["file_path"] = getattr(node, "file_path", "")
-            # File/Directory nodes have no start_line/end_line columns in the schema
-            if not isinstance(node, (FileNode, DirectoryNode)):
+            if not is_fileish:
                 row["start_line"] = 0
                 row["end_line"] = 0
 

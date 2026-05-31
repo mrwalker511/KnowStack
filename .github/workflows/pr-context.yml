@@ -1,0 +1,136 @@
+name: PR Context
+
+# Runs the KnowStack PR context minimizer on every pull request and posts a
+# token-budgeted, LLM-ready review-context bundle as a PR comment. The comment
+# is upserted (looked up by a hidden marker, then PATCH-ed or POST-ed) so
+# successive pushes update the same comment instead of stacking new ones.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TOKEN_BUDGET: "4000"
+  MODEL: "claude-sonnet-4-6"
+  # Surface tracebacks immediately and disable Python output buffering so
+  # whatever crashes mid-step shows up in the job log instead of being lost.
+  PYTHONUNBUFFERED: "1"
+  PYTHONFAULTHANDLER: "1"
+
+jobs:
+  pr-context:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          # full history so `git diff <base>..HEAD` works
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cache KnowStack index and HF model
+        uses: actions/cache@v4
+        with:
+          path: |
+            .knowstack
+            ~/.cache/huggingface
+          key: knowstack-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
+          restore-keys: |
+            knowstack-${{ runner.os }}-
+
+      - name: Install KnowStack
+        run: pip install -e .
+
+      - name: Show environment
+        run: |
+          python --version
+          pip --version
+          echo "--- installed packages ---"
+          pip list || true
+          echo "--- resources ---"
+          free -h || true
+          df -h . || true
+
+      - name: Index (full on cold cache, incremental otherwise)
+        run: |
+          # --incremental requires an initialized graph; fall back to a full
+          # index on cold cache (or if the incremental run trips for any
+          # other reason — e.g. a schema-version bump).
+          # Flags must precede the positional repo path — typer otherwise
+          # parses `--verbose` as a sub-sub-command name and exits 2.
+          if [ -d .knowstack ] && [ -n "$(ls -A .knowstack 2>/dev/null)" ]; then
+            knowstack index --incremental --verbose . || knowstack index --verbose .
+          else
+            knowstack index --verbose .
+          fi
+
+      - name: Build PR context bundle
+        id: bundle
+        env:
+          # Pass the title via env to avoid shell-injection / quoting issues
+          # when a PR title contains backticks, $, or double quotes.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_NUMBER: ${{ github.event.number }}
+        # Disable errexit/pipefail so a non-zero exit from the CLI (e.g.
+        # exit 2 = empty diff) is handled by our explicit `if`, not by
+        # the runner's default `set -eo pipefail`.
+        shell: bash {0}
+        run: |
+          git diff "$BASE_SHA"..HEAD > /tmp/pr.diff
+          knowstack pr-context \
+            --diff /tmp/pr.diff \
+            --repo . \
+            --budget "${TOKEN_BUDGET}" \
+            --model "${MODEL}" \
+            --pr "${PR_NUMBER}" \
+            --title "${PR_TITLE}" \
+            --json > /tmp/bundle.json
+          rc=$?
+          echo "pr-context exit=$rc"
+          if [ "$rc" -ne 0 ]; then
+            echo '{"empty": true}' > /tmp/bundle.json
+          fi
+          exit 0
+
+      - name: Render comment body
+        run: |
+          python .github/actions/pr-context/format_comment.py \
+            /tmp/bundle.json > /tmp/comment.md
+
+      - name: Upsert PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/comment.md', 'utf8');
+            const marker = '<!-- knowstack-pr-context -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.startsWith(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+              core.info(`Updated comment ${existing.id}`);
+            } else {
+              const { data } = await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+              core.info(`Created comment ${data.id}`);
+            }
