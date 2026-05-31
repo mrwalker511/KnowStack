@@ -66,10 +66,12 @@ jobs:
           # --incremental requires an initialized graph; fall back to a full
           # index on cold cache (or if the incremental run trips for any
           # other reason — e.g. a schema-version bump).
+          # Flags must precede the positional repo path — typer otherwise
+          # parses `--verbose` as a sub-sub-command name and exits 2.
           if [ -d .knowstack ] && [ -n "$(ls -A .knowstack 2>/dev/null)" ]; then
-            knowstack index . --incremental --verbose || knowstack index . --verbose
+            knowstack index --incremental --verbose . || knowstack index --verbose .
           else
-            knowstack index . --verbose
+            knowstack index --verbose .
           fi
 
       - name: Build PR context bundle
