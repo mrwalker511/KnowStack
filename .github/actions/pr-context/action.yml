@@ -1,0 +1,140 @@
+name: KnowStack PR context
+description: >
+  Index the repository with KnowStack, build a token-budgeted PR review
+  context bundle for the current PR's diff, and upsert it as a comment.
+
+inputs:
+  github-token:
+    description: "Token with `pull-requests: write`. Pass `${{ secrets.GITHUB_TOKEN }}`."
+    required: true
+  model:
+    description: Token-cost model family (claude, gpt, …). Affects the budget estimator.
+    required: false
+    default: claude-sonnet-4-6
+  budget:
+    description: Maximum tokens to include in the context bundle.
+    required: false
+    default: "4000"
+  knowstack-spec:
+    description: >
+      What to pass to `pip install`. Defaults to `knowstack` (the published
+      PyPI package). Set to `.` to use the checked-out source (the bootstrap
+      case while developing this repo itself), or to `git+https://...` to
+      pin to a branch.
+    required: false
+    default: knowstack
+  python-version:
+    description: Python interpreter to set up.
+    required: false
+    default: "3.11"
+  cache-key-prefix:
+    description: Prefix for the index + HF model cache key (allows multiple repos in one runner).
+    required: false
+    default: knowstack
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    - name: Cache KnowStack index and HF model
+      uses: actions/cache@v5
+      with:
+        path: |
+          .knowstack
+          ~/.cache/huggingface
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
+        restore-keys: |
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+
+    - name: Install KnowStack
+      shell: bash
+      run: pip install "${{ inputs.knowstack-spec }}"
+
+    - name: Show environment
+      shell: bash
+      run: |
+        python --version
+        pip --version
+        echo "--- installed packages ---"
+        pip list || true
+        echo "--- resources ---"
+        free -h || true
+        df -h . || true
+
+    - name: Index (full on cold cache, incremental otherwise)
+      shell: bash
+      env:
+        PYTHONUNBUFFERED: "1"
+        PYTHONFAULTHANDLER: "1"
+      run: |
+        # Flags must precede the positional repo path — typer otherwise
+        # parses `--verbose` as a sub-sub-command name and exits 2.
+        if [ -d .knowstack ] && [ -n "$(ls -A .knowstack 2>/dev/null)" ]; then
+          knowstack index --incremental --verbose . || knowstack index --verbose .
+        else
+          knowstack index --verbose .
+        fi
+
+    - name: Build PR context bundle
+      shell: bash {0}
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_NUMBER: ${{ github.event.number }}
+        TOKEN_BUDGET: ${{ inputs.budget }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        git diff "$BASE_SHA"..HEAD > /tmp/pr.diff
+        knowstack pr-context \
+          --diff /tmp/pr.diff \
+          --repo . \
+          --budget "${TOKEN_BUDGET}" \
+          --model "${MODEL}" \
+          --pr "${PR_NUMBER}" \
+          --title "${PR_TITLE}" \
+          --json > /tmp/bundle.json
+        rc=$?
+        echo "pr-context exit=$rc"
+        if [ "$rc" -ne 0 ]; then
+          echo '{"empty": true}' > /tmp/bundle.json
+        fi
+        exit 0
+
+    - name: Render comment body
+      shell: bash
+      run: |
+        python "${{ github.action_path }}/format_comment.py" \
+          /tmp/bundle.json > /tmp/comment.md
+
+    - name: Upsert PR comment
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const body = fs.readFileSync('/tmp/comment.md', 'utf8');
+          const marker = '<!-- knowstack-pr-context -->';
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner, repo, issue_number, per_page: 100,
+          });
+          const existing = comments.find(c => c.body && c.body.startsWith(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner, repo, comment_id: existing.id, body,
+            });
+            core.info(`Updated comment ${existing.id}`);
+          } else {
+            const { data } = await github.rest.issues.createComment({
+              owner, repo, issue_number, body,
+            });
+            core.info(`Created comment ${data.id}`);
+          }

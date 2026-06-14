@@ -14,6 +14,21 @@ from knowstack.retrieval.ranker import RankedNode
 
 log = logging.getLogger(__name__)
 
+
+def _safe_depth(depth: int, *, lo: int = 1, hi: int = 10) -> int:
+    """Validate a graph-traversal depth before inlining it into Cypher.
+
+    Kuzu's parser does not accept bound parameters for variable-length
+    relationship bounds (``[*1..$depth]`` raises a parser exception), so
+    the depth must be interpolated as a literal. We bound it to keep
+    accidental graph blowups (and any caller-provided input) in check.
+    """
+    if not isinstance(depth, int) or isinstance(depth, bool):
+        raise TypeError(f"depth must be an int, got {type(depth).__name__}")
+    if depth < lo or depth > hi:
+        raise ValueError(f"depth must be in [{lo}, {hi}], got {depth}")
+    return depth
+
 # ── DSL tokeniser ─────────────────────────────────────────────────────────────
 
 _TOKEN_RE = re.compile(
@@ -99,15 +114,20 @@ class GraphRetriever:
         if not node_id:
             return []
 
-        params: dict[str, Any] = {"id": node_id, "depth": depth, "limit": lim}
+        d = _safe_depth(depth)
+        params: dict[str, Any] = {"id": node_id, "limit": lim}
         repo_filter = ""
         if repo_id:
             repo_filter = " AND dep.repo_id = $rid"
             params["rid"] = repo_id
+        # `LABEL(dep)` is selected explicitly because variable-length matches
+        # don't always populate the per-node `_label` attribute on Kuzu's
+        # returned object — relying on that produced empty `node_type`s in
+        # the "impacted" group of the PR-context bundle.
         cypher = f"""
-            MATCH (n {{node_id: $id}})<-[*1..$depth]-(dep)
+            MATCH (n {{node_id: $id}})<-[*1..{d}]-(dep)
             WHERE dep.node_id <> $id{repo_filter}
-            RETURN DISTINCT dep
+            RETURN DISTINCT dep, LABEL(dep) AS nt
             ORDER BY dep.importance_score DESC
             LIMIT $limit
         """
@@ -129,13 +149,14 @@ class GraphRetriever:
         if not src_id or not dst_id:
             return []
 
-        cypher = """
-            MATCH p = shortestPath((s {node_id: $src})-[*1..$depth]-(d {node_id: $dst}))
+        md = _safe_depth(max_depth, hi=20)
+        cypher = f"""
+            MATCH p = shortestPath((s {{node_id: $src}})-[*1..{md}]-(d {{node_id: $dst}}))
             RETURN nodes(p) AS path_nodes
             LIMIT 3
         """
         try:
-            rows = self._store.cypher(cypher, {"src": src_id, "dst": dst_id, "depth": max_depth})
+            rows = self._store.cypher(cypher, {"src": src_id, "dst": dst_id})
             paths: list[list[RankedNode]] = []
             for row in rows:
                 path_nodes = row.get("path_nodes") or []
@@ -155,14 +176,15 @@ class GraphRetriever:
         if not node_id:
             return []
 
-        cypher = """
-            MATCH (n {node_id: $id})-[*1..$depth]-(neighbor)
+        d = _safe_depth(depth)
+        cypher = f"""
+            MATCH (n {{node_id: $id}})-[*1..{d}]-(neighbor)
             RETURN DISTINCT neighbor
             ORDER BY neighbor.importance_score DESC
             LIMIT $limit
         """
         try:
-            rows = self._store.cypher(cypher, {"id": node_id, "depth": depth, "limit": lim})
+            rows = self._store.cypher(cypher, {"id": node_id, "limit": lim})
             return [RankedNode.from_graph_row(self._flatten_node_row(r)) for r in rows]
         except Exception as exc:
             log.warning("Neighbourhood query failed: %s", exc)
@@ -264,13 +286,25 @@ class GraphRetriever:
 
     @staticmethod
     def _flatten_node_row(row: dict[str, Any]) -> dict[str, Any]:
-        """Kuzu returns node as an object; flatten its properties."""
+        """Kuzu returns node as an object; flatten its properties.
+
+        node_type is recovered in priority order:
+          1. an explicit `nt` column (queries pass `LABEL(node) AS nt` when
+             they need a reliable label — required for variable-length
+             matches where Kuzu doesn't populate `_label`);
+          2. the Kuzu node's `_label` attribute when present;
+          3. otherwise left unset, so downstream code can default it.
+        """
         flat: dict[str, Any] = {}
+        explicit_nt: str | None = None
         for k, v in row.items():
+            if k == "nt" and isinstance(v, str) and v:
+                explicit_nt = v
+                continue
             if hasattr(v, "__dict__"):  # Kuzu Node object
-                # Preserve the node's table name as node_type before flattening
-                table_name = getattr(v, "_label", None) or type(v).__name__
-                flat["node_type"] = table_name
+                label = getattr(v, "_label", None)
+                if isinstance(label, str) and label and "node_type" not in flat:
+                    flat["node_type"] = label
                 for prop_k, prop_v in v.__dict__.items():
                     if not prop_k.startswith("_"):
                         flat[prop_k] = prop_v
@@ -278,4 +312,6 @@ class GraphRetriever:
                 flat.update(v)
             else:
                 flat[k.lstrip("n.")] = v
+        if explicit_nt:
+            flat["node_type"] = explicit_nt
         return flat

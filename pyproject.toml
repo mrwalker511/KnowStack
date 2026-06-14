@@ -9,6 +9,25 @@ description = "Codebase knowledge graph for LLM context retrieval and developer 
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+authors = [
+    { name = "KnowStack contributors" },
+]
+keywords = [
+    "llm", "rag", "code-search", "knowledge-graph",
+    "context-engineering", "code-review", "static-analysis",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "kuzu>=0.9.0,<1.0",
     "tree-sitter>=0.23.0,<1.0",
@@ -36,6 +55,11 @@ serve = [
     "uvicorn[standard]>=0.34.0,<0.35",
 ]
 
+[project.urls]
+Homepage = "https://github.com/mrwalker511/KnowStack"
+Repository = "https://github.com/mrwalker511/KnowStack"
+Issues = "https://github.com/mrwalker511/KnowStack/issues"
+
 [project.scripts]
 knowstack = "knowstack.cli.main:app"
 
@@ -61,10 +85,23 @@ ignore = ["E501"]
 strict = true
 python_version = "3.11"
 ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+# Typer command callbacks are decorator-typed by typer; treating those as
+# untyped triggers spurious `untyped-decorator` errors across the CLI. The
+# decorators themselves are fine — it's a stub-completeness issue upstream.
+disable_error_code = ["untyped-decorator"]
+
+[tool.pydantic-mypy]
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=knowstack --cov-report=term-missing -q"
+# tests/fixtures/ is sample source code the parsers chew on — files named
+# `test_*.py` in there are intentional, but they're synthetic and aren't
+# meant to be executed as part of our own suite.
+norecursedirs = ["tests/fixtures"]
 
 [tool.coverage.run]
 source = ["knowstack"]

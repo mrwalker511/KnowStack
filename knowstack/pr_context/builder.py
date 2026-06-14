@@ -6,12 +6,14 @@ import logging
 from knowstack.config.schema import KnowStackConfig
 from knowstack.pr_context.budget import (
     estimate_tokens,
+    naive_file_baseline_tokens,
     rank_and_trim,
 )
 from knowstack.pr_context.models import (
     NeighborhoodPolicy,
     PRContextBundle,
     PRMetadata,
+    SeedSymbol,
     SelectedNode,
 )
 from knowstack.pr_context.neighborhood import Candidate, expand_neighborhood
@@ -62,14 +64,21 @@ def build_pr_review_context(
         )
 
         context_text = _format_context(selected, seed_cands, pr)
+        estimated = estimate_tokens(context_text, model_name)
+        baseline = naive_file_baseline_tokens(pr, model_name)
         return PRContextBundle(
             context_text=context_text,
             nodes=tuple(selected),
-            estimated_tokens=estimate_tokens(context_text, model_name),
+            estimated_tokens=estimated,
             budget_tokens=token_budget,
-            seeds=tuple(s.node.fqn for s in seed_cands),
+            seeds=tuple(
+                SeedSymbol(fqn=s.node.fqn, node_type=s.node.node_type)
+                for s in seed_cands
+            ),
             dropped_count=dropped,
             notes=tuple(notes),
+            baseline_tokens=baseline,
+            tokens_saved=max(0, baseline - estimated),
         )
     finally:
         engine.close()
@@ -145,4 +154,6 @@ def _empty_bundle(token_budget: int, notes: list[str]) -> PRContextBundle:
         seeds=(),
         dropped_count=0,
         notes=tuple(notes),
+        baseline_tokens=0,
+        tokens_saved=0,
     )

@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
 from knowstack.graph.store import GraphStore
 from knowstack.pr_context.models import ChangedFile, Hunk
@@ -152,7 +153,7 @@ def _lookup_file_nodes(
 
 
 def _row_to_seed(
-    row: dict, table: str, file_path: str, *, file_node: bool = False,
+    row: dict[str, Any], table: str, file_path: str, *, file_node: bool = False,
 ) -> Seed:
     return Seed(
         node_id=str(row.get("node_id", "")),

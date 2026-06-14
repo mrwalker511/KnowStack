@@ -1,13 +1,16 @@
 """Unit tests for pr_context.budget — rank, trim, and token accounting."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from knowstack.pr_context.budget import (
     chars_per_token,
     estimate_tokens,
+    naive_file_baseline_tokens,
     rank_and_trim,
     score_candidate,
 )
-from knowstack.pr_context.models import SelectionReason
+from knowstack.pr_context.models import ChangedFile, PRMetadata, SelectionReason
 from knowstack.pr_context.neighborhood import Candidate
 from knowstack.retrieval.ranker import RankedNode
 
@@ -113,3 +116,47 @@ def test_rank_and_trim_respects_budget_when_neighbors_are_large():
     )
     assert dropped > 0
     assert len(selected) - 1 < len(neighbors)  # at least some were trimmed
+
+
+# ── naive_file_baseline_tokens ──────────────────────────────────────────────
+
+
+def test_baseline_sums_changed_file_tokens(tmp_path: Path):
+    (tmp_path / "a.py").write_text("x = 1\n" * 100)
+    (tmp_path / "b.py").write_text("y = 2\n" * 50)
+    pr = PRMetadata(
+        repo_path=tmp_path,
+        files=(
+            ChangedFile(path="a.py"),
+            ChangedFile(path="b.py"),
+        ),
+    )
+    n = naive_file_baseline_tokens(pr, "claude")
+    expected = (
+        estimate_tokens((tmp_path / "a.py").read_text(), "claude")
+        + estimate_tokens((tmp_path / "b.py").read_text(), "claude")
+    )
+    assert n == expected
+    assert n > 0
+
+
+def test_baseline_skips_deleted_files(tmp_path: Path):
+    (tmp_path / "kept.py").write_text("alive = True\n" * 10)
+    pr = PRMetadata(
+        repo_path=tmp_path,
+        files=(
+            ChangedFile(path="kept.py"),
+            ChangedFile(path="gone.py", is_deleted=True),
+        ),
+    )
+    # Deleted file doesn't need to exist on disk.
+    n = naive_file_baseline_tokens(pr, "claude")
+    assert n == estimate_tokens((tmp_path / "kept.py").read_text(), "claude")
+
+
+def test_baseline_tolerates_missing_files(tmp_path: Path):
+    pr = PRMetadata(
+        repo_path=tmp_path,
+        files=(ChangedFile(path="does-not-exist.py"),),
+    )
+    assert naive_file_baseline_tokens(pr, "claude") == 0

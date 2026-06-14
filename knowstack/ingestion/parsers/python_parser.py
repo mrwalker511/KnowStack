@@ -156,10 +156,13 @@ class _ParseContext:
         self._res.nodes.append(cls_node)
         self._emit_contains(self._file_node.node_id, cls_node.node_id)
 
-        # Walk class body for methods
+        # Walk class body for methods.
+        # _class_stack holds *unqualified* class names; _make_fqn already
+        # prepends the module FQN. Pushing the full class FQN would
+        # double-prepend the module path on every nested symbol.
         body = node.child_by_field_name("body")
         if body:
-            self._class_stack.append(fqn)
+            self._class_stack.append(name)
             for child in body.children:
                 if child.type in ("function_definition", "async_function_definition"):
                     self._visit_function(child, inside_class=True)
@@ -204,7 +207,7 @@ class _ParseContext:
                 decorator_names=dec_names,
                 parameter_names=params,
                 return_type=return_type,
-                class_fqn=self._class_stack[-1],
+                class_fqn=self._current_class_fqn(),
                 is_static="staticmethod" in dec_names,
                 is_classmethod="classmethod" in dec_names,
                 is_property="property" in dec_names,
@@ -239,7 +242,7 @@ class _ParseContext:
 
         self._res.nodes.append(fn_node)
         parent_id = (
-            make_node_id(self._rec.rel_path, self._class_stack[-1])
+            make_node_id(self._rec.rel_path, self._current_class_fqn())
             if inside_class and self._class_stack
             else self._file_node.node_id
         )
@@ -359,6 +362,9 @@ class _ParseContext:
     def _make_fqn(self, name: str) -> str:
         parts = [self._module_fqn] + self._class_stack + [name]
         return ".".join(parts)
+
+    def _current_class_fqn(self) -> str:
+        return ".".join([self._module_fqn] + self._class_stack)
 
     def _text(self, node: Node) -> str:
         return node.text.decode("utf-8", errors="replace") if node.text else ""

@@ -70,22 +70,40 @@ class SelectedNode:
 
 
 @dataclass(frozen=True)
+class SeedSymbol:
+    """A touched-symbol seed, carrying its node type for downstream display."""
+    fqn: str
+    node_type: str                  # "Method"/"Function"/.../"File"/"ConfigFile"
+
+    @property
+    def is_symbol(self) -> bool:
+        """True if this seed is a code symbol (not a bare file or config)."""
+        return self.node_type not in ("", "File", "Directory", "ConfigFile")
+
+
+@dataclass(frozen=True)
 class PRContextBundle:
     """The full result: LLM-ready text plus structured metadata."""
     context_text: str
     nodes: tuple[SelectedNode, ...]
     estimated_tokens: int
     budget_tokens: int
-    seeds: tuple[str, ...]          # FQNs of touched symbols
+    seeds: tuple[SeedSymbol, ...]   # touched symbols, with node_type
     dropped_count: int              # candidates considered but trimmed for budget
     notes: tuple[str, ...] = field(default_factory=tuple)
+    # Naive-baseline metrics for the demo headline. Both default to 0 so
+    # older callers that don't compute them still produce valid bundles.
+    baseline_tokens: int = 0        # tokens if you pasted every changed file in full
+    tokens_saved: int = 0           # max(0, baseline_tokens - estimated_tokens)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         return {
             "context_text": self.context_text,
             "estimated_tokens": self.estimated_tokens,
             "budget_tokens": self.budget_tokens,
-            "seeds": list(self.seeds),
+            "baseline_tokens": self.baseline_tokens,
+            "tokens_saved": self.tokens_saved,
+            "seeds": [{"fqn": s.fqn, "node_type": s.node_type} for s in self.seeds],
             "dropped_count": self.dropped_count,
             "notes": list(self.notes),
             "nodes": [
