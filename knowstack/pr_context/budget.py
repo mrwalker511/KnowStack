@@ -8,7 +8,7 @@ for whatever budget is left.
 """
 from __future__ import annotations
 
-from knowstack.pr_context.models import SelectedNode, SelectionReason
+from knowstack.pr_context.models import PRMetadata, SelectedNode, SelectionReason
 from knowstack.pr_context.neighborhood import Candidate
 from knowstack.retrieval.context_packer import ContextPacker
 from knowstack.retrieval.ranker import RankedNode
@@ -50,6 +50,25 @@ def estimate_tokens(text: str, model_name: str) -> int:
     if not text:
         return 0
     return max(1, int(len(text) / chars_per_token(model_name)))
+
+
+def naive_file_baseline_tokens(pr: PRMetadata, model_name: str) -> int:
+    """What a naive bot would spend by pasting every changed file in full.
+
+    This is the denominator behind the "saved N tokens" demo headline. Deleted
+    files contribute nothing; unreadable paths are skipped silently so a
+    missing file in a stale checkout can't crash the pipeline.
+    """
+    total = 0
+    for cf in pr.files:
+        if cf.is_deleted:
+            continue
+        try:
+            text = (pr.repo_path / cf.path).read_text(errors="replace")
+        except OSError:
+            continue
+        total += estimate_tokens(text, model_name)
+    return total
 
 
 def score_candidate(c: Candidate) -> float:

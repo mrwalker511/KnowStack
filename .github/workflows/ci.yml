@@ -1,0 +1,42 @@
+name: ci
+
+# Tests / lint / typecheck on every push to main and on every PR. Runs
+# alongside the PR Context workflow — that one renders the demo comment, this
+# one keeps the package itself green.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install KnowStack with dev + serve extras
+        run: pip install -e ".[dev,serve]"
+
+      - name: Lint (ruff)
+        run: ruff check
+
+      - name: Typecheck (mypy)
+        run: mypy knowstack
+
+      - name: Test (pytest)
+        run: pytest

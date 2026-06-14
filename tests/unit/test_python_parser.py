@@ -2,6 +2,7 @@
 
 from knowstack.ingestion.parsers.python_parser import PythonParser
 from knowstack.models.enums import Language, NodeType
+from knowstack.models.nodes import MethodNode
 
 
 def test_parser_can_parse_python(auth_file_record):
@@ -90,3 +91,16 @@ def test_parser_no_errors_on_valid_file(auth_file_record):
     parser = PythonParser()
     result = parser.parse(auth_file_record)
     assert result.errors == []
+
+
+def test_method_fqn_does_not_double_prepend_module(models_file_record):
+    # Regression: _class_stack used to hold the full class FQN, so
+    # _make_fqn(method) produced "models.models.User.verify_password".
+    parser = PythonParser()
+    result = parser.parse(models_file_record)
+    methods = [n for n in result.nodes if isinstance(n, MethodNode)]
+    verify = next(n for n in methods if n.name == "verify_password")
+    assert verify.fqn == "models.User.verify_password"
+    assert verify.class_fqn == "models.User"
+    # Stronger invariant: module prefix appears exactly once.
+    assert verify.fqn.count("models.") == 1

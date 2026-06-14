@@ -125,10 +125,54 @@ tokens). The comment is upserted on every push, so reviewers (and any
 downstream LLM review bot) always see the latest bundle without comment
 spam.
 
-To enable it on your repo, copy `.github/workflows/pr-context.yml` and
-`.github/actions/pr-context/format_comment.py`. Full setup — including
-caching, tuning the budget/model, and a local dry-run — is documented in
-[docs/github_actions.md](docs/github_actions.md).
+### Drop-in workflow for your own repo
+
+Add a single workflow file at `.github/workflows/pr-context.yml`:
+
+```yaml
+name: PR Context
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr-context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: mrwalker511/KnowStack/.github/actions/pr-context@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          budget: "4000"
+          model: claude-sonnet-4-6
+```
+
+That's the whole integration — no copying scripts, no manual install. The
+composite action pins itself to whatever version of KnowStack is on PyPI;
+override with `knowstack-spec: "knowstack==0.1.0"` to pin to a release, or
+`knowstack-spec: "git+https://github.com/mrwalker511/KnowStack@main"` to
+track this branch.
+
+### Before / after: a real bundle
+
+On a recent PR that touched 24 files (parsers, retrieval, formatter, infra),
+the bundle came in at **2,996 tokens, 87% smaller than pasting the full
+changed files** (23,159 tokens). The bundle keeps every touched symbol,
+plus its direct callers, callees, and tests, and lists non-code changes
+(workflows, pyproject, tests) under a separate "Changed files" group so
+the reviewer model isn't tricked into treating a YAML edit as a symbol.
+
+A captured sample (the exact comment the action posted on that PR) lives at
+[`docs/examples/sample_pr_bundle.md`](docs/examples/sample_pr_bundle.md).
+
+For deeper setup — caching, tuning the budget/model, debugging a local
+dry-run — see [docs/github_actions.md](docs/github_actions.md).
 
 ## Configuration
 

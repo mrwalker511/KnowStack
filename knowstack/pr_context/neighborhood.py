@@ -118,9 +118,11 @@ def _seed_to_candidate(seed: Seed) -> Candidate:
 
 
 def _tests_of(store: GraphStore, node_id: str, repo_id: str | None) -> list[Candidate]:
+    # Match label is fixed by the Test table; pass it as a literal so
+    # _row_to_ranked doesn't depend on Kuzu populating `_label`.
     cypher = """
         MATCH (t:Test)-[:TESTED_BY]->(n {node_id: $id})
-        RETURN t
+        RETURN t AS n, "Test" AS nt
     """
     return _collect(store, cypher, {"id": node_id}, repo_id, reason="test", distance=1)
 
@@ -129,7 +131,7 @@ def _callers_of(store: GraphStore, node_id: str, repo_id: str | None) -> list[Ca
     cypher = """
         MATCH (caller)-[:CALLS]->(n {node_id: $id})
         WHERE caller.node_id <> $id
-        RETURN caller AS n
+        RETURN caller AS n, label(caller) AS nt
     """
     return _collect(store, cypher, {"id": node_id}, repo_id, reason="caller", distance=1)
 
@@ -138,7 +140,7 @@ def _callees_of(store: GraphStore, node_id: str, repo_id: str | None) -> list[Ca
     cypher = """
         MATCH (n {node_id: $id})-[:CALLS]->(callee)
         WHERE callee.node_id <> $id
-        RETURN callee AS n
+        RETURN callee AS n, label(callee) AS nt
     """
     return _collect(store, cypher, {"id": node_id}, repo_id, reason="callee", distance=1)
 
@@ -175,7 +177,7 @@ def _related_configs(
         cypher = f"""
             MATCH (c:ConfigFile)
             WHERE c.tags CONTAINS $needle{repo_clause}
-            RETURN c AS n
+            RETURN c AS n, "ConfigFile" AS nt
             LIMIT 2
         """
         try:
@@ -196,7 +198,7 @@ def _related_configs(
 
 
 def _collect(
-    store: GraphStore, cypher: str, params: dict, repo_id: str | None,
+    store: GraphStore, cypher: str, params: dict[str, object], repo_id: str | None,
     *, reason: SelectionReason, distance: int,
 ) -> list[Candidate]:
     try:
@@ -215,21 +217,34 @@ def _collect(
     return out
 
 
-def _row_to_ranked(row: dict) -> RankedNode | None:
-    """Flatten a Kuzu node object into a RankedNode (any column name)."""
-    flat: dict = {}
+def _row_to_ranked(row: dict[str, object]) -> RankedNode | None:
+    """Flatten a Kuzu node object into a RankedNode.
+
+    `node_type` is recovered in three steps, in order of trust:
+      1. an explicit `nt` column in the row (queries set this via either a
+         `LABEL(n)` call or a literal — Kuzu's stored nodes don't carry
+         `node_type` as a column, only the table label);
+      2. the Kuzu node object's `_label` attribute, when present;
+      3. an empty string. Empty types render badly in the comment, so we
+         prefer (1) and (2) and reserve "" for genuinely unknown rows.
+    """
+    flat: dict[str, object] = {}
     table_label: str | None = None
-    for v in row.values():
+    explicit_nt: str | None = None
+    for k, v in row.items():
+        if k == "nt" and isinstance(v, str) and v:
+            explicit_nt = v
+            continue
         if hasattr(v, "__dict__") and not isinstance(v, (str, int, float, bool)):
             table_label = getattr(v, "_label", None) or table_label
-            for k, val in v.__dict__.items():
-                if not k.startswith("_"):
-                    flat[k] = val
+            for fk, val in v.__dict__.items():
+                if not fk.startswith("_"):
+                    flat[fk] = val
         elif isinstance(v, dict):
             flat.update(v)
     if not flat.get("node_id"):
         return None
     node = RankedNode.from_graph_row(flat)
-    if not node.node_type and table_label:
-        node.node_type = str(table_label)
+    if not node.node_type:
+        node.node_type = explicit_nt or (str(table_label) if table_label else "")
     return node

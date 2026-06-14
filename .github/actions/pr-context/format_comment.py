@@ -29,6 +29,15 @@ REASON_LABEL = {
     "related_config": "Related configs",
 }
 
+# Node types that represent code symbols a reviewer can reason about.
+# Anything else (a bare File node, a ConfigFile when a YAML/TOML was edited
+# but no symbol covers the hunk) is shown under "Changed files" rather than
+# pretending to be a touched symbol.
+SYMBOL_TYPES = {
+    "Function", "Method", "Class", "Test",
+    "ApiEndpoint", "DbModel", "Interface", "TypeAlias",
+}
+
 
 def main(argv: list[str]) -> int:
     raw = _read_input(argv)
@@ -53,11 +62,32 @@ def main(argv: list[str]) -> int:
 def _render(bundle: dict) -> str:
     used = int(bundle.get("estimated_tokens", 0))
     budget = int(bundle.get("budget_tokens", 0))
+    baseline = int(bundle.get("baseline_tokens", 0))
+    saved = int(bundle.get("tokens_saved", 0))
     nodes = bundle.get("nodes", []) or []
     dropped = int(bundle.get("dropped_count", 0))
     notes = bundle.get("notes", []) or []
-    seeds = bundle.get("seeds", []) or []
+    seeds_raw = bundle.get("seeds", []) or []
     context_text = bundle.get("context_text", "") or ""
+
+    # Accept both the M3+ shape (list of {fqn, node_type}) and the M2 shape
+    # (list of bare FQN strings) so the action can render an older bundle
+    # during a partial upgrade.
+    symbol_seeds: list[str] = []
+    file_seeds: list[str] = []
+    for entry in seeds_raw:
+        if isinstance(entry, dict):
+            fqn = str(entry.get("fqn", ""))
+            nt = str(entry.get("node_type", ""))
+        else:
+            fqn = str(entry)
+            nt = ""
+        if not fqn:
+            continue
+        if nt and nt not in SYMBOL_TYPES:
+            file_seeds.append(fqn)
+        else:
+            symbol_seeds.append(fqn)
 
     # Sort for stable rendering across runs (matters for the upsert check —
     # comment bodies should be deterministic for the same bundle).
@@ -76,6 +106,18 @@ def _render(bundle: dict) -> str:
 
     parts: list[str] = [MARKER, "### KnowStack PR review context", ""]
 
+    # Lead with the savings line — that's the demo punchline. Only show it
+    # when we have a non-trivial baseline (skip if files were missing or
+    # all-deleted, where the comparison would be misleading).
+    if baseline > 0 and used > 0:
+        pct_saved = 100 * saved / baseline if baseline else 0
+        parts.append(
+            f"**Saved ~{saved:,} tokens ({pct_saved:.0f}%)** vs. pasting the "
+            f"full changed files into your reviewer "
+            f"(this bundle: {used:,} tokens, files in full: {baseline:,})."
+        )
+        parts.append("")
+
     pct = (100 * used / budget) if budget else 0
     parts.append(
         f"**Budget:** {used:,} / {budget:,} tokens ({pct:.0f}%) "
@@ -83,12 +125,21 @@ def _render(bundle: dict) -> str:
     )
     parts.append("")
 
-    if seeds:
+    if symbol_seeds:
         parts.append("**Touched symbols**")
-        for s in seeds[:10]:
+        for s in symbol_seeds[:10]:
             parts.append(f"- `{s}`")
-        if len(seeds) > 10:
-            parts.append(f"- … and {len(seeds) - 10} more")
+        if len(symbol_seeds) > 10:
+            parts.append(f"- … and {len(symbol_seeds) - 10} more")
+        parts.append("")
+
+    if file_seeds:
+        parts.append("**Changed files** (no symbol-level context — non-code, "
+                     "config, or a new file the index hasn't seen yet)")
+        for s in file_seeds[:10]:
+            parts.append(f"- `{s}`")
+        if len(file_seeds) > 10:
+            parts.append(f"- … and {len(file_seeds) - 10} more")
         parts.append("")
 
     if touched:

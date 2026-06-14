@@ -20,30 +20,60 @@ in place instead of stacking a new one.
 
 ## Enabling on another repository
 
-1. Copy two files into the target repo, preserving paths:
-   - `.github/workflows/pr-context.yml`
-   - `.github/actions/pr-context/format_comment.py`
-2. Make sure the repo's default `GITHUB_TOKEN` has `pull-requests: write`
-   (the workflow declares this in its `permissions:` block — no extra setup
-   needed unless your org locks tokens down further).
-3. Install KnowStack as a dependency the workflow can `pip install` — the
-   included workflow does `pip install -e .`, which assumes KnowStack is the
-   repo being indexed. For a repo that just *uses* KnowStack, change that
-   step to `pip install knowstack`.
-
-## Tuning
-
-Edit the `env:` block at the top of `.github/workflows/pr-context.yml`:
+Drop a single workflow file at `.github/workflows/pr-context.yml`:
 
 ```yaml
-env:
-  TOKEN_BUDGET: "4000"           # cap on the packed context block
-  MODEL: "claude-sonnet-4-6"     # influences chars-per-token estimation
+name: PR Context
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr-context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: mrwalker511/KnowStack/.github/actions/pr-context@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          budget: "4000"
+          model: claude-sonnet-4-6
 ```
 
-Lower the budget for cheaper models or terser comments; raise it for deeper
-reviews. The CLI itself is the single source of truth — every flag the
-workflow passes is documented under `knowstack pr-context --help`.
+The composite action lives in this repo under
+`.github/actions/pr-context/` — GitHub resolves `uses:` against a path on
+any public repository, so external users don't need to copy any files.
+
+### Pinning the KnowStack version
+
+`knowstack-spec` is the string passed to `pip install`. The default
+(`knowstack`) installs the latest published version from PyPI. Other
+common choices:
+
+| Use case | `knowstack-spec` value |
+|---|---|
+| Pin a release | `knowstack==0.1.0` |
+| Track this repo's `main` | `git+https://github.com/mrwalker511/KnowStack@main` |
+| Use a fork | `git+https://github.com/yourname/KnowStack@your-branch` |
+| Develop in-tree (this repo only) | `.` |
+
+### Tuning
+
+Inputs on the composite action:
+
+| Input | Default | Effect |
+|---|---|---|
+| `budget` | `4000` | Maximum tokens in the rendered context block. |
+| `model` | `claude-sonnet-4-6` | Drives the chars-per-token estimator. |
+| `knowstack-spec` | `knowstack` | What to `pip install` (see table above). |
+| `python-version` | `3.11` | Interpreter the action sets up. |
+| `cache-key-prefix` | `knowstack` | Lets you partition caches if you run the action in multiple repos that share a runner. |
 
 ## How indexing is cached
 
@@ -77,3 +107,13 @@ git diff main...HEAD > /tmp/pr.diff
 knowstack pr-context --diff /tmp/pr.diff --json > /tmp/bundle.json
 python .github/actions/pr-context/format_comment.py /tmp/bundle.json
 ```
+
+## What "savings" means in the comment
+
+The headline (`Saved ~N tokens (X%)`) compares the bundle's estimated
+token count against a naive baseline: the sum of tokens you would have
+spent if you'd dropped every changed file in full into your reviewer
+model. Deleted files contribute zero. The estimator is char-based and
+per-model (see `MODEL_CHARS_PER_TOKEN` in `knowstack/pr_context/budget.py`)
+— it's intentionally conservative so the displayed savings under-claim
+rather than over-claim.

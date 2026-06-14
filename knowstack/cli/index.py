@@ -6,7 +6,7 @@ from rich.console import Console
 
 from knowstack.config.loader import load_config
 from knowstack.config.schema import KnowStackConfig
-from knowstack.ingestion.pipeline import IngestionPipeline
+from knowstack.ingestion.pipeline import IngestionPipeline, IngestionReport
 from knowstack.utils.logging import setup_logging
 
 app = typer.Typer(help="Index a repository into the knowledge graph.")
@@ -87,14 +87,14 @@ def _run_incremental(config: KnowStackConfig) -> None:
         console.print(f"[red]Incremental indexing not available: {exc}[/red]")
 
 
-def _print_report(report: object) -> None:
+def _print_report(report: IngestionReport) -> None:
     console.print()
     console.print(
-        f"[bold green]Done[/bold green] in {report.duration_seconds:.1f}s  "  # type: ignore[attr-defined]
+        f"[bold green]Done[/bold green] in {report.duration_seconds:.1f}s  "
         f"[dim]{report.files_parsed} files  "
         f"{report.nodes_written} nodes  "
         f"{report.edges_written} edges  "
         f"{report.nodes_embedded} embedded[/dim]"
     )
-    if report.errors:  # type: ignore[attr-defined]
-        console.print(f"[yellow]{len(report.errors)} warnings — run with --verbose to see them[/yellow]")  # type: ignore[attr-defined]
+    if report.errors:
+        console.print(f"[yellow]{len(report.errors)} warnings — run with --verbose to see them[/yellow]")
